@@ -1,0 +1,529 @@
+---
+title: 'Abilities API'
+description: 'Access Pokemon ability data including effects, ratings, flags, and battle interactions'
+---
+
+# Abilities API
+
+The `DexAbilities` API provides comprehensive data about Pokemon abilities including their effects, ratings, flags, and how they interact in battle. Access it through `Dex.abilities`.
+
+## Getting Ability Data
+
+```typescript
+import { Dex } from './sim/dex';
+
+// Get an ability by name
+const intimidate = Dex.abilities.get('Intimidate');
+console.log(intimidate.name); // 'Intimidate'
+console.log(intimidate.rating); // 3.5
+
+// Get all abilities
+const allAbilities = Dex.abilities.all();
+console.log(allAbilities.length); // 307 (in Gen 9)
+```
+
+## Methods
+
+### get()
+
+```typescript
+Dex.abilities.get(name?: string | Ability): Ability
+```
+
+Retrieves ability data by name or returns the ability if already an Ability object.
+
+<ParamField path="name" type="string | Ability">
+  Ability name (case-insensitive, spaces optional) or an existing Ability object.
+</ParamField>
+
+<ResponseField name="return" type="Ability">
+  A readonly Ability object with all ability properties. Returns an empty ability with `exists: false` if not found.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const levitate = Dex.abilities.get('Levitate');
+console.log(levitate.id); // 'levitate'
+console.log(levitate.name); // 'Levitate'
+console.log(levitate.exists); // true
+
+const invalid = Dex.abilities.get('Not An Ability');
+console.log(invalid.exists); // false
+```
+
+### getByID()
+
+```typescript
+Dex.abilities.getByID(id: ID): Ability
+```
+
+Retrieves ability data by ID (lowercase, no spaces).
+
+<ParamField path="id" type="ID">
+  Ability ID in lowercase alphanumeric format.
+</ParamField>
+
+**Example:**
+
+```typescript
+const ability = Dex.abilities.getByID('speedboost' as ID);
+console.log(ability.name); // 'Speed Boost'
+```
+
+### all()
+
+```typescript
+Dex.abilities.all(): readonly Ability[]
+```
+
+Returns an array of all abilities in the current generation/mod.
+
+<ResponseField name="return" type="readonly Ability[]">
+  Array of all Ability objects, including nonstandard abilities.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const allAbilities = Dex.abilities.all();
+const hiddenAbilities = allAbilities.filter(a => a.rating >= 3);
+console.log(`${hiddenAbilities.length} highly-rated abilities`);
+```
+
+## Ability Properties
+
+### Basic Properties
+
+<ParamField path="id" type="ID">
+  Unique identifier (lowercase, no spaces).
+</ParamField>
+
+<ParamField path="name" type="string">
+  Display name of the ability.
+</ParamField>
+
+<ParamField path="num" type="number">
+  Ability index number.
+</ParamField>
+
+<ParamField path="desc" type="string">
+  Full description of the ability's effects.
+</ParamField>
+
+<ParamField path="shortDesc" type="string">
+  Short description (typically used in-game).
+</ParamField>
+
+<ParamField path="gen" type="number">
+  Generation when this ability was introduced (3-9).
+</ParamField>
+
+<ParamField path="exists" type="boolean">
+  Whether this ability exists in the data.
+</ParamField>
+
+<ParamField path="isNonstandard" type="string | null">
+  Indicates if ability is nonstandard: `'Past'`, `'Future'`, `'CAP'`, `'LGPE'`, etc. `null` for standard abilities.
+</ParamField>
+
+**Example:**
+
+```typescript
+const adaptability = Dex.abilities.get('Adaptability');
+console.log(adaptability.name); // 'Adaptability'
+console.log(adaptability.num); // 91
+console.log(adaptability.gen); // 4
+console.log(adaptability.shortDesc); // 'STAB moves have 2x power instead of 1.5x.'
+```
+
+### Rating
+
+<ParamField path="rating" type="number">
+  Competitive viability rating from -1 (detrimental) to 5 (essential).
+  
+  - **5**: Essential for competitive play (e.g., Huge Power, Magic Bounce)
+  - **4**: Excellent ability (e.g., Regenerator, Intimidate)
+  - **3**: Good ability (e.g., Lightning Rod, Flash Fire)
+  - **2**: Useful ability (e.g., Keen Eye, Pickup)
+  - **1**: Situationally useful (e.g., Pickup, Illuminate)
+  - **0**: Useless (e.g., Illuminate)
+  - **-1**: Actively detrimental (e.g., Slow Start, Truant)
+</ParamField>
+
+**Example:**
+
+```typescript
+const hugePower = Dex.abilities.get('Huge Power');
+console.log(hugePower.rating); // 5
+
+const speedBoost = Dex.abilities.get('Speed Boost');
+console.log(speedBoost.rating); // 4.5
+
+const truant = Dex.abilities.get('Truant');
+console.log(truant.rating); // -1
+```
+
+### Flags
+
+The `flags` object contains boolean properties indicating special ability behaviors:
+
+```typescript
+interface AbilityFlags {
+  breakable?: 1;        // Suppressed by Mold Breaker and similar
+  cantsuppress?: 1;     // Can't be suppressed by Gastro Acid/Neutralizing Gas
+  failroleplay?: 1;     // Role Play fails if target has this
+  failskillswap?: 1;    // Skill Swap fails if either Pokemon has this
+  noentrain?: 1;        // Entrainment fails if user has this
+  noreceiver?: 1;       // Receiver/Power of Alchemy won't copy this
+  notrace?: 1;          // Trace cannot copy this
+  notransform?: 1;      // Disabled when the user is Transformed
+}
+```
+
+<ParamField path="flags.breakable" type="1 | undefined">
+  If set, this ability can be suppressed by Mold Breaker, Teravolt, and Turboblaze.
+</ParamField>
+
+<ParamField path="flags.cantsuppress" type="1 | undefined">
+  If set, this ability cannot be suppressed by Gastro Acid or Neutralizing Gas (e.g., Multitype, RKS System).
+</ParamField>
+
+<ParamField path="flags.notrace" type="1 | undefined">
+  If set, Trace cannot copy this ability (e.g., most signature abilities).
+</ParamField>
+
+<ParamField path="flags.failroleplay" type="1 | undefined">
+  If set, Role Play fails when targeting a Pokemon with this ability.
+</ParamField>
+
+<ParamField path="flags.failskillswap" type="1 | undefined">
+  If set, Skill Swap fails when either Pokemon has this ability.
+</ParamField>
+
+**Example:**
+
+```typescript
+const wonderGuard = Dex.abilities.get('Wonder Guard');
+console.log(wonderGuard.flags.breakable); // undefined (can't be broken)
+console.log(wonderGuard.flags.notrace); // 1 (can't be traced)
+console.log(wonderGuard.flags.failskillswap); // 1 (can't be swapped)
+
+const sturdy = Dex.abilities.get('Sturdy');
+console.log(sturdy.flags.breakable); // 1 (suppressed by Mold Breaker)
+
+const multitype = Dex.abilities.get('Multitype');
+console.log(multitype.flags.cantsuppress); // 1 (can't be suppressed)
+console.log(multitype.flags.notrace); // 1
+```
+
+### Weather Suppression
+
+<ParamField path="suppressWeather" type="boolean">
+  If true, this ability suppresses weather effects (e.g., Air Lock, Cloud Nine).
+</ParamField>
+
+**Example:**
+
+```typescript
+const airLock = Dex.abilities.get('Air Lock');
+console.log(airLock.suppressWeather); // true
+
+const cloudNine = Dex.abilities.get('Cloud Nine');
+console.log(cloudNine.suppressWeather); // true
+```
+
+## Ability Categories
+
+### Stat-Boosting Abilities
+
+```typescript
+// Find abilities that boost stats
+const statBoosters = Dex.abilities.all().filter(ability => {
+  const desc = ability.desc.toLowerCase();
+  return desc.includes('attack') || desc.includes('defense') || desc.includes('speed');
+});
+
+// Examples
+const hugePower = Dex.abilities.get('Huge Power');
+console.log(hugePower.shortDesc); // 'Attack is doubled.'
+
+const speedBoost = Dex.abilities.get('Speed Boost');
+console.log(speedBoost.shortDesc); // 'Speed is raised by 1 at the end of each full turn.'
+```
+
+### Defensive Abilities
+
+```typescript
+// Immunity-granting abilities
+const levitate = Dex.abilities.get('Levitate');
+console.log(levitate.shortDesc); // 'Immune to Ground moves.'
+
+const voltAbsorb = Dex.abilities.get('Volt Absorb');
+console.log(voltAbsorb.shortDesc); // 'Restores 1/4 max HP when hit by Electric moves; Electric immunity.'
+
+// Damage reduction
+const filter = Dex.abilities.get('Filter');
+console.log(filter.shortDesc); // 'Super effective moves against this Pokemon deal 0.75x damage.'
+
+const solidRock = Dex.abilities.get('Solid Rock');
+console.log(solidRock.shortDesc); // 'Super effective moves against this Pokemon deal 0.75x damage.'
+```
+
+### Offensive Abilities
+
+```typescript
+const adaptability = Dex.abilities.get('Adaptability');
+console.log(adaptability.shortDesc); // 'STAB moves have 2x power instead of 1.5x.'
+
+const sheerForce = Dex.abilities.get('Sheer Force');
+console.log(sheerForce.shortDesc); // "Moves with secondary effects have 1.3x power; nullifies their effects."
+
+const technician = Dex.abilities.get('Technician');
+console.log(technician.shortDesc); // 'Moves with 60 power or less have 1.5x power.'
+```
+
+### Utility Abilities
+
+```typescript
+const regenerator = Dex.abilities.get('Regenerator');
+console.log(regenerator.shortDesc); // 'Restores 1/3 max HP on switch-out.'
+
+const magicBounce = Dex.abilities.get('Magic Bounce');
+console.log(magicBounce.shortDesc); // 'Reflects most status moves back at the user.'
+
+const prankster = Dex.abilities.get('Prankster');
+console.log(prankster.shortDesc); // 'Status moves have +1 priority.'
+```
+
+## Filtering Abilities
+
+```typescript
+// Get all abilities with rating >= 4
+const topTier = Dex.abilities.all().filter(a => 
+  a.rating >= 4 && !a.isNonstandard
+);
+
+// Get all Gen 3 abilities
+const gen3Abilities = Dex.abilities.all().filter(a => 
+  a.gen === 3
+);
+
+// Get all abilities that can't be traced
+const untraceableAbilities = Dex.abilities.all().filter(a => 
+  a.flags.notrace
+);
+
+// Get all abilities that suppress weather
+const weatherSuppressors = Dex.abilities.all().filter(a => 
+  a.suppressWeather
+);
+
+// Get all abilities that are breakable by Mold Breaker
+const breakableAbilities = Dex.abilities.all().filter(a => 
+  a.flags.breakable
+);
+```
+
+## Generation Differences
+
+```typescript
+// Abilities were introduced in Gen 3
+const gen2Dex = Dex.mod('gen2');
+const gen2Abilities = gen2Dex.abilities.all();
+console.log(gen2Abilities.length); // 0 or special 'No Ability' entry
+
+// Some abilities changed between generations
+const gen4Levitate = Dex.mod('gen4').abilities.get('Levitate');
+const gen8Levitate = Dex.mod('gen8').abilities.get('Levitate');
+// Core effect remains the same, but implementation details may differ
+
+// New abilities in Gen 9
+const gen9NewAbilities = Dex.abilities.all().filter(a => a.gen === 9);
+console.log(`Gen 9 introduced ${gen9NewAbilities.length} new abilities`);
+```
+
+## Checking Pokemon Abilities
+
+```typescript
+// Check what abilities a Pokemon can have
+function getPokemonAbilities(speciesName: string): string[] {
+  const species = Dex.species.get(speciesName);
+  const abilities: string[] = [];
+  
+  if (species.abilities[0]) abilities.push(species.abilities[0]);
+  if (species.abilities[1]) abilities.push(species.abilities[1]);
+  if (species.abilities.H) abilities.push(species.abilities.H);
+  if (species.abilities.S) abilities.push(species.abilities.S);
+  
+  return abilities;
+}
+
+const blastoiseAbilities = getPokemonAbilities('Blastoise');
+console.log(blastoiseAbilities); // ['Torrent', 'Rain Dish']
+
+// Get full ability data
+function getAbilityDetails(abilityName: string) {
+  const ability = Dex.abilities.get(abilityName);
+  
+  return {
+    name: ability.name,
+    description: ability.shortDesc,
+    rating: ability.rating,
+    gen: ability.gen,
+    canBeTraced: !ability.flags.notrace,
+    suppressedByMoldBreaker: !!ability.flags.breakable,
+  };
+}
+
+const intimidateDetails = getAbilityDetails('Intimidate');
+console.log(intimidateDetails);
+/*
+{
+  name: 'Intimidate',
+  description: 'On switch-in, lowers adjacent foes\' Attack by 1.',
+  rating: 3.5,
+  gen: 3,
+  canBeTraced: true,
+  suppressedByMoldBreaker: true
+}
+*/
+```
+
+## Ability Interactions
+
+```typescript
+// Check if an ability can be suppressed
+function canSuppressAbility(abilityName: string): boolean {
+  const ability = Dex.abilities.get(abilityName);
+  return !ability.flags.cantsuppress;
+}
+
+console.log(canSuppressAbility('Levitate')); // true
+console.log(canSuppressAbility('Multitype')); // false
+
+// Check if an ability can be copied by Trace
+function canBeTraced(abilityName: string): boolean {
+  const ability = Dex.abilities.get(abilityName);
+  return !ability.flags.notrace;
+}
+
+console.log(canBeTraced('Intimidate')); // true
+console.log(canBeTraced('Wonder Guard')); // false
+
+// Check if an ability can be swapped
+function canBeSwapped(abilityName: string): boolean {
+  const ability = Dex.abilities.get(abilityName);
+  return !ability.flags.failskillswap;
+}
+
+console.log(canBeSwapped('Flash Fire')); // true
+console.log(canBeSwapped('Wonder Guard')); // false
+```
+
+## Complete Example
+
+```typescript
+import { Dex } from './sim/dex';
+
+function analyzeAbility(abilityName: string) {
+  const ability = Dex.abilities.get(abilityName);
+  
+  if (!ability.exists) {
+    console.log(`Ability "${abilityName}" not found`);
+    return;
+  }
+  
+  console.log(`=== ${ability.name} ===`);
+  console.log(`ID: ${ability.id}`);
+  console.log(`Gen: ${ability.gen}`);
+  console.log(`Rating: ${ability.rating}`);
+  console.log(`\nDescription: ${ability.desc}`);
+  console.log(`Short: ${ability.shortDesc}`);
+  
+  console.log(`\nProperties:`);
+  if (ability.suppressWeather) {
+    console.log('- Suppresses weather');
+  }
+  if (ability.flags.breakable) {
+    console.log('- Suppressed by Mold Breaker effects');
+  }
+  if (ability.flags.cantsuppress) {
+    console.log('- Cannot be suppressed');
+  }
+  if (ability.flags.notrace) {
+    console.log('- Cannot be traced');
+  }
+  if (ability.flags.failskillswap) {
+    console.log('- Cannot be swapped');
+  }
+  if (ability.flags.noentrain) {
+    console.log('- Cannot be Entrained');
+  }
+  
+  // Find Pokemon with this ability
+  const allSpecies = Dex.species.all();
+  const withAbility = allSpecies.filter(s => 
+    Object.values(s.abilities).includes(ability.name) && !s.isNonstandard
+  );
+  
+  console.log(`\n${withAbility.length} Pokemon can have this ability`);
+  if (withAbility.length > 0 && withAbility.length <= 5) {
+    console.log('Pokemon:', withAbility.map(s => s.name).join(', '));
+  }
+}
+
+analyzeAbility('Levitate');
+analyzeAbility('Huge Power');
+analyzeAbility('Wonder Guard');
+```
+
+## Type Definitions
+
+```typescript
+interface Ability {
+  readonly id: ID;
+  readonly name: string;
+  readonly num: number;
+  readonly desc: string;
+  readonly shortDesc: string;
+  readonly rating: number;
+  readonly gen: number;
+  readonly suppressWeather: boolean;
+  readonly flags: AbilityFlags;
+  readonly exists: boolean;
+  readonly isNonstandard: string | null;
+  readonly effectType: 'Ability';
+}
+
+interface AbilityFlags {
+  breakable?: 1;
+  cantsuppress?: 1;
+  failroleplay?: 1;
+  failskillswap?: 1;
+  noentrain?: 1;
+  noreceiver?: 1;
+  notrace?: 1;
+  notransform?: 1;
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Dex API" icon="book" href="/api/dex">
+    Main Dex interface and utility methods
+  </Card>
+  
+  <Card title="Species API" icon="dragon" href="/api/species">
+    Pokemon species with ability data
+  </Card>
+  
+  <Card title="Moves API" icon="wind" href="/api/moves">
+    Move interactions with abilities
+  </Card>
+  
+  <Card title="Items API" icon="gem" href="/api/items">
+    Item interactions with abilities
+  </Card>
+</CardGroup>

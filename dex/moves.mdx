@@ -1,0 +1,446 @@
+---
+title: 'Moves API'
+description: 'Access move data including base power, accuracy, type, effects, and more'
+---
+
+## Overview
+
+The Moves API provides comprehensive data about Pokémon moves including damage, accuracy, type, priority, effects, and generation-specific changes.
+
+## Basic Usage
+
+### Get a Move
+
+Retrieve move information using `Dex.moves.get()`:
+
+```javascript
+const {Dex} = require('pokemon-showdown');
+
+const tackle = Dex.moves.get('Tackle');
+console.log(tackle.name); // 'Tackle'
+console.log(tackle.basePower); // 40
+console.log(tackle.type); // 'Normal'
+console.log(tackle.accuracy); // 100
+```
+
+<Note>
+Move names are case-insensitive and whitespace is ignored.
+</Note>
+
+```javascript
+// All of these work
+Dex.moves.get('tackle');
+Dex.moves.get('Tackle');
+Dex.moves.get('TACKLE');
+Dex.moves.get('T a c k l e');
+```
+
+## Move Properties
+
+<CodeGroup>
+
+```javascript Basic Properties
+const thunderbolt = Dex.moves.get('Thunderbolt');
+
+console.log(thunderbolt.num); // Move dex number
+console.log(thunderbolt.name); // 'Thunderbolt'
+console.log(thunderbolt.type); // 'Electric'
+console.log(thunderbolt.category); // 'Special'
+console.log(thunderbolt.basePower); // 90
+console.log(thunderbolt.accuracy); // 100
+console.log(thunderbolt.pp); // 15
+```
+
+```javascript Priority & Targeting
+const aquaJet = Dex.moves.get('Aqua Jet');
+
+console.log(aquaJet.priority); // 1
+console.log(aquaJet.target); // 'normal'
+// Target types: 'normal', 'self', 'allAdjacent',
+// 'allAdjacentFoes', 'allySide', etc.
+
+const earthquake = Dex.moves.get('Earthquake');
+console.log(earthquake.target); // 'allAdjacent'
+```
+
+```javascript Flags
+const aerialAce = Dex.moves.get('Aerial Ace');
+
+console.log(aerialAce.flags);
+// { contact: 1, protect: 1, mirror: 1, 
+//   distance: 1, metronome: 1, slicing: 1 }
+
+// Common flags:
+// contact - Makes contact
+// protect - Blocked by Protect
+// mirror - Affected by Mirror Move
+// sound - Sound-based move
+// bite - Boosted by Strong Jaw
+```
+
+```javascript Secondary Effects
+const thunderbolt = Dex.moves.get('Thunderbolt');
+
+console.log(thunderbolt.secondary);
+// { chance: 10, status: 'par' }
+// 10% chance to paralyze
+
+const iceBeam = Dex.moves.get('Ice Beam');
+console.log(iceBeam.secondary);
+// { chance: 10, status: 'frz' }
+// 10% chance to freeze
+```
+
+</CodeGroup>
+
+## Move Categories
+
+### Damaging Moves
+
+```javascript
+const flamethrower = Dex.moves.get('Flamethrower');
+
+console.log(flamethrower.category); // 'Special'
+console.log(flamethrower.basePower); // 90
+console.log(flamethrower.type); // 'Fire'
+
+const closeCombat = Dex.moves.get('Close Combat');
+console.log(closeCombat.category); // 'Physical'
+console.log(closeCombat.basePower); // 120
+```
+
+### Status Moves
+
+```javascript
+const thunderWave = Dex.moves.get('Thunder Wave');
+
+console.log(thunderWave.category); // 'Status'
+console.log(thunderWave.basePower); // 0
+console.log(thunderWave.status); // 'par'
+
+const swordsDance = Dex.moves.get('Swords Dance');
+console.log(swordsDance.boosts); // { atk: 2 }
+```
+
+## Multi-Hit Moves
+
+```javascript
+const doubleSlap = Dex.moves.get('Double Slap');
+console.log(doubleSlap.multihit); // [2, 5]
+// Hits 2-5 times
+
+const doubleKick = Dex.moves.get('Double Kick');
+console.log(doubleKick.multihit); // 2
+// Always hits exactly 2 times
+
+const beatUp = Dex.moves.get('Beat Up');
+console.log(beatUp.multihit); // undefined
+// Calculated dynamically based on party
+```
+
+## Recoil & Drain Moves
+
+<CodeGroup>
+
+```javascript Recoil
+const bravebird = Dex.moves.get('Brave Bird');
+
+console.log(bravebird.recoil); // [33, 100]
+// User takes 33/100 (33%) of damage dealt
+
+const doubleEdge = Dex.moves.get('Double-Edge');
+console.log(doubleEdge.recoil); // [33, 100]
+```
+
+```javascript Drain
+const gigaDrain = Dex.moves.get('Giga Drain');
+
+console.log(gigaDrain.drain); // [1, 2]
+// User heals 1/2 (50%) of damage dealt
+
+const absorb = Dex.moves.get('Absorb');
+console.log(absorb.drain); // [1, 2]
+console.log(absorb.flags.heal); // 1
+```
+
+</CodeGroup>
+
+## Critical Hit Ratios
+
+```javascript
+const aeroblast = Dex.moves.get('Aeroblast');
+console.log(aeroblast.critRatio); // 2
+// High critical hit ratio (1/8 chance)
+
+const slash = Dex.moves.get('Slash');
+console.log(slash.critRatio); // 2
+
+const tackle = Dex.moves.get('Tackle');
+console.log(tackle.critRatio); // undefined
+// Normal critical hit ratio (1/24 chance)
+```
+
+## Special Move Properties
+
+### Accuracy
+
+```javascript
+const aurasphere = Dex.moves.get('Aura Sphere');
+console.log(aurasphere.accuracy); // true
+// Never misses (ignores accuracy/evasion)
+
+const blizzard = Dex.moves.get('Blizzard');
+console.log(blizzard.accuracy); // 70
+// 70% accuracy (100% in hail)
+```
+
+### OHKO Moves
+
+```javascript
+const fissure = Dex.moves.get('Fissure');
+console.log(fissure.ohko); // true
+console.log(fissure.accuracy); // 30
+// Base 30% accuracy, fails if target is higher level
+```
+
+### Two-Turn Moves
+
+```javascript
+const fly = Dex.moves.get('Fly');
+console.log(fly.flags.charge); // 1
+// Charges on turn 1, attacks on turn 2
+
+const bounce = Dex.moves.get('Bounce');
+console.log(bounce.flags.charge); // 1
+console.log(bounce.accuracy); // 85
+```
+
+## Move Effects
+
+### Stat Changes
+
+<CodeGroup>
+
+```javascript User Stat Changes
+const closeCombat = Dex.moves.get('Close Combat');
+
+console.log(closeCombat.self);
+// { boosts: { def: -1, spd: -1 } }
+// User's Defense and Sp. Def decrease by 1
+
+const ancientPower = Dex.moves.get('Ancient Power');
+console.log(ancientPower.secondary);
+// { chance: 10, self: { boosts: 
+//   { atk: 1, def: 1, spa: 1, spd: 1, spe: 1 } } }
+```
+
+```javascript Target Stat Changes
+const acidSpray = Dex.moves.get('Acid Spray');
+
+console.log(acidSpray.secondary);
+// { chance: 100, boosts: { spd: -2 } }
+// Always lowers target's Sp. Def by 2
+
+const playRough = Dex.moves.get('Play Rough');
+console.log(playRough.secondary);
+// { chance: 10, boosts: { atk: -1 } }
+// 10% chance to lower target's Attack
+```
+
+</CodeGroup>
+
+### Status Conditions
+
+```javascript
+const thunderbolt = Dex.moves.get('Thunderbolt');
+console.log(thunderbolt.secondary);
+// { chance: 10, status: 'par' }
+
+const blazeKick = Dex.moves.get('Blaze Kick');
+console.log(blazeKick.secondary);
+// { chance: 10, status: 'brn' }
+
+const airSlash = Dex.moves.get('Air Slash');
+console.log(airSlash.secondary);
+// { chance: 30, volatileStatus: 'flinch' }
+```
+
+## Z-Moves and Max Moves
+
+```javascript
+const thunderbolt = Dex.moves.get('Thunderbolt');
+
+// Check if move can be a Z-Move
+console.log(thunderbolt.isZ); // undefined (can become Z-Move)
+
+// Get Z-Move power
+const breakdown = Dex.moves.get('Breakneck Blitz');
+console.log(breakdown.isZ); // 'normaliumz'
+console.log(breakdown.basePower); // 1 (calculated dynamically)
+
+// Max Move power
+const maxFlare = Dex.moves.get('Max Flare');
+console.log(maxFlare.isMax); // 'Fire'
+```
+
+## List All Moves
+
+Retrieve all move data:
+
+```javascript
+const allMoves = Dex.moves.all();
+
+console.log(allMoves.length); // 900+ moves
+console.log(allMoves[0].name); // First move in database
+
+// Filter to damaging moves
+const attackMoves = allMoves.filter(m => 
+  m.basePower > 0 && m.exists && !m.isNonstandard
+);
+
+// Find all Fire-type moves
+const fireMoves = allMoves.filter(m => 
+  m.type === 'Fire' && m.exists && !m.isNonstandard
+);
+```
+
+<Warning>
+The `.all()` method includes nonstandard data from past generations, Z-Moves, Max Moves, and custom moves. Always check `exists` and `isNonstandard` properties.
+</Warning>
+
+## Generation-Specific Data
+
+Moves change between generations:
+
+```javascript
+// Current generation
+const tackle = Dex.moves.get('Tackle');
+console.log(tackle.basePower); // 40
+
+// Gen 1 data
+const gen1Tackle = Dex.mod('gen1').moves.get('Tackle');
+console.log(gen1Tackle.basePower); // 35
+
+// Gen 4 - when special/physical split happened
+const gen3Bite = Dex.mod('gen3').moves.get('Bite');
+console.log(gen3Bite.category); // 'Physical'
+
+const gen4Bite = Dex.mod('gen4').moves.get('Bite');
+console.log(gen4Bite.category); // 'Physical'
+console.log(gen4Bite.type); // 'Dark'
+```
+
+## Checking Move Existence
+
+```javascript
+const frobnicate = Dex.moves.get('frobnicate');
+console.log(frobnicate.exists); // false
+console.log(frobnicate.isNonstandard); // 'Custom'
+
+const tackle = Dex.moves.get('Tackle');
+console.log(tackle.exists); // true
+console.log(tackle.isNonstandard); // null (standard)
+
+const acidDownpour = Dex.moves.get('Acid Downpour');
+console.log(acidDownpour.exists); // true
+console.log(acidDownpour.isNonstandard); // 'Past'
+console.log(acidDownpour.isZ); // 'poisoniumz'
+```
+
+## Practical Examples
+
+### Find Highest Base Power Moves
+
+```javascript
+const standardMoves = Dex.moves.all()
+  .filter(m => m.exists && !m.isNonstandard && !m.isMax && !m.isZ);
+
+const strongest = standardMoves.reduce((max, m) => 
+  m.basePower > max.basePower ? m : max
+);
+
+console.log(strongest.name);
+console.log(strongest.basePower);
+```
+
+### Get All Priority Moves
+
+```javascript
+const priorityMoves = Dex.moves.all()
+  .filter(m => m.exists && !m.isNonstandard)
+  .filter(m => m.priority > 0)
+  .sort((a, b) => b.priority - a.priority);
+
+priorityMoves.forEach(m => {
+  console.log(`${m.name}: +${m.priority} priority`);
+});
+```
+
+### Find STAB Moves for a Type
+
+```javascript
+const type = 'Electric';
+const stab = Dex.moves.all()
+  .filter(m => m.type === type && m.basePower > 0)
+  .filter(m => m.exists && !m.isNonstandard)
+  .sort((a, b) => b.basePower - a.basePower);
+
+console.log(`Top ${type} moves:`);
+stab.slice(0, 10).forEach(m => {
+  console.log(`${m.name}: ${m.basePower} BP`);
+});
+```
+
+### Calculate Average Damage
+
+```javascript
+const doubleSlap = Dex.moves.get('Double Slap');
+
+if (Array.isArray(doubleSlap.multihit)) {
+  const [min, max] = doubleSlap.multihit;
+  const avgHits = (min + max) / 2;
+  const avgDamage = doubleSlap.basePower * avgHits;
+  console.log(`Average damage: ${avgDamage}`);
+}
+```
+
+## Move Callbacks
+
+<Note>
+Some move effects are implemented via callback functions. These are not directly usable but show move behavior.
+</Note>
+
+```javascript
+const acrobatics = Dex.moves.get('Acrobatics');
+
+console.log(acrobatics.basePowerCallback);
+// function(pokemon, target, move) {
+//   if (!pokemon.item) {
+//     return move.basePower * 2;
+//   }
+//   return move.basePower;
+// }
+// Base power doubles if user has no item
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+
+<Card title="Species API" icon="dragon" href="/dex/species">
+Query Pokémon species data
+</Card>
+
+<Card title="Abilities API" icon="shield-halved" href="/dex/abilities">
+Get ability information
+</Card>
+
+<Card title="Items API" icon="gem" href="/dex/items">
+Access held items data
+</Card>
+
+<Card title="Formats Data" icon="list" href="/dex/formats-data">
+Check format-specific restrictions
+</Card>
+
+</CardGroup>

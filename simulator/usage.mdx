@@ -1,0 +1,319 @@
+---
+title: Simulator Usage
+description: How to use the Pokemon Showdown battle simulator API
+---
+
+This guide covers how to interact with the Pokemon Showdown battle simulator using the Node.js API.
+
+## Basic Setup
+
+### Creating a Battle
+
+The simulator uses `BattleStream` as its primary interface:
+
+```js
+const Sim = require('pokemon-showdown');
+const stream = new Sim.BattleStream();
+
+// Read output from the battle
+(async () => {
+    for await (const output of stream) {
+        console.log(output);
+    }
+})();
+
+// Start the battle
+stream.write(`>start {"formatid":"gen9ou"}`);
+stream.write(`>player p1 {"name":"Alice","team":"<packed team>"}`);
+stream.write(`>player p2 {"name":"Bob","team":"<packed team>"}`);
+```
+
+<Note>
+  Teams must be provided in [packed format](/simulator/teams#packed-format) for non-random formats.
+</Note>
+
+## Writing to the Simulator
+
+All messages written to the simulator must start with `>`. Lines without `>` are treated as comments.
+
+### Start Command
+
+Initialize a battle with format options:
+
+```
+>start OPTIONS
+```
+
+`OPTIONS` is a JSON object with these properties:
+
+<ParamField path="formatid" type="string" required>
+  The format ID (e.g., `"gen9ou"`, `"gen9randombattle"`)
+</ParamField>
+
+<ParamField path="seed" type="number[]">
+  Array of four numbers for PRNG seed (defaults to random)
+</ParamField>
+
+<ParamField path="p1" type="PlayerOptions">
+  Player 1 options (alternative to separate `>player p1` command)
+</ParamField>
+
+<ParamField path="p2" type="PlayerOptions">
+  Player 2 options (alternative to separate `>player p2` command)
+</ParamField>
+
+<ParamField path="p3" type="PlayerOptions">
+  Player 3 options for 4-player battles
+</ParamField>
+
+<ParamField path="p4" type="PlayerOptions">
+  Player 4 options for 4-player battles
+</ParamField>
+
+#### Example
+
+```js
+stream.write(`>start {"formatid":"gen9ou","seed":[1,2,3,4]}`);
+```
+
+### Player Command
+
+Set player information:
+
+```
+>player PLAYERID PLAYEROPTIONS
+```
+
+`PLAYERID` is `p1`, `p2`, `p3`, or `p4`.
+
+`PLAYEROPTIONS` is a JSON object:
+
+<ParamField path="name" type="string">
+  Player name (defaults to "Player 1" or "Player 2")
+</ParamField>
+
+<ParamField path="avatar" type="string">
+  Player avatar identifier (defaults to empty string)
+</ParamField>
+
+<ParamField path="team" type="string | PokemonSet[]">
+  Team in packed format or JSON format
+</ParamField>
+
+<Warning>
+  Teams are **not** validated automatically. Use [TeamValidator](/simulator/teams#team-validator) first to ensure legality.
+</Warning>
+
+#### Example
+
+```js
+stream.write(`>player p1 {"name":"Alice","team":"<packed team>"}`);
+stream.write(`>player p2 {"name":"Bob","team":"<packed team>"}`);
+```
+
+### Choice Commands
+
+Submit player decisions:
+
+```
+>p1 CHOICE
+>p2 CHOICE
+>p3 CHOICE
+>p4 CHOICE
+```
+
+`CHOICE` can be:
+
+- `move MOVENUM` - Use a move (e.g., `move 1`)
+- `switch POKEMONNUM` - Switch Pokemon (e.g., `switch 3`)
+- `team TEAMORDER` - Select team order in Team Preview (e.g., `team 123456`)
+
+For complete choice documentation, see [SIM-PROTOCOL.md](https://github.com/smogon/pokemon-showdown/blob/master/sim/SIM-PROTOCOL.md#possible-choices).
+
+#### Example Turn
+
+```js
+// Team Preview
+stream.write(`>p1 team 123456`);
+stream.write(`>p2 team 123456`);
+
+// Turn 1
+stream.write(`>p1 move 1`);
+stream.write(`>p2 switch 3`);
+
+// Turn 2
+stream.write(`>p1 move 3`);
+stream.write(`>p2 move 2`);
+```
+
+## Reading from the Simulator
+
+The simulator outputs messages delimited by `\n\n` in text streams, or as separate strings in object streams.
+
+### Message Types
+
+<Tabs>
+  <Tab title="update">
+    Messages for all players and spectators:
+
+    ```
+    update
+    MESSAGES
+    ```
+
+    Contains battle state updates following the [SIM-PROTOCOL](/protocol/sim-protocol) format.
+
+    #### Split Messages
+
+    Private information is sent using `|split|PLAYERID`:
+
+    ```
+    |split|p1
+    SECRET
+    PUBLIC
+    ```
+
+    - `SECRET` - Messages with exact details (e.g., exact HP) for the player or omniscient observer
+    - `PUBLIC` - Messages with public details for opponents/spectators (may be empty)
+  </Tab>
+  <Tab title="sideupdate">
+    Messages for a specific player only:
+
+    ```
+    sideupdate
+    PLAYERID
+    MESSAGES
+    ```
+
+    `PLAYERID` is `p1`, `p2`, `p3`, or `p4`.
+
+    Choice requests are sent this way. See [Choice Requests](https://github.com/smogon/pokemon-showdown/blob/master/sim/SIM-PROTOCOL.md#choice-requests).
+  </Tab>
+  <Tab title="end">
+    Sent when the battle ends:
+
+    ```
+    end
+    LOGDATA
+    ```
+
+    `LOGDATA` is a JSON object containing battle metadata like turn count and winner name.
+  </Tab>
+</Tabs>
+
+## Complete Example
+
+Here's a full example with team generation and battle simulation:
+
+<CodeGroup>
+```js Node.js
+const Sim = require('pokemon-showdown');
+const { Teams } = Sim;
+
+// Generate random teams
+const team1 = Teams.pack(Teams.generate('gen9randombattle'));
+const team2 = Teams.pack(Teams.generate('gen9randombattle'));
+
+// Create battle stream
+const stream = new Sim.BattleStream();
+
+// Listen to battle output
+(async () => {
+    for await (const output of stream) {
+        console.log(output);
+    }
+})();
+
+// Start battle
+stream.write(`>start {"formatid":"gen9randombattle"}`);
+stream.write(`>player p1 {"name":"Alice","team":${JSON.stringify(team1)}}`);
+stream.write(`>player p2 {"name":"Bob","team":${JSON.stringify(team2)}}`);
+
+// Make choices (in a real scenario, parse choice requests first)
+stream.write(`>p1 move 1`);
+stream.write(`>p2 move 1`);
+```
+
+```bash Command Line
+echo '>start {"formatid":"gen9randombattle"}
+>player p1 {"name":"Alice"}
+>player p2 {"name":"Bob"}
+>p1 move 1
+>p2 move 1' | ./pokemon-showdown simulate-battle
+```
+</CodeGroup>
+
+## Advanced Options
+
+### BattleStream Options
+
+You can pass options when creating a BattleStream:
+
+```js
+const stream = new Sim.BattleStream({
+    debug: true,        // Enable debug mode
+    noCatch: false,     // Disable error catching (errors will throw)
+    keepAlive: false,   // Keep stream alive after battle ends
+    replay: false       // Enable replay mode ('spectator' for spectator view)
+});
+```
+
+### Seeded Battles
+
+For reproducible battles, provide a seed:
+
+```js
+stream.write(`>start {"formatid":"gen9ou","seed":[1,2,3,4]}`);
+```
+
+The same seed with the same inputs will produce identical battles.
+
+### Force Commands
+
+You can force battle outcomes:
+
+```
+>forcewin PLAYERID    // Force a player to win
+>forcetie             // Force a tie
+>forcelose PLAYERID   // Force a player to lose
+```
+
+<Warning>
+  Force commands should only be used for testing or administrative purposes.
+</Warning>
+
+## Error Handling
+
+Errors in player choices are sent as `|error|` messages in sideupdate:
+
+```
+sideupdate
+p1
+|error|[Invalid choice] ...
+```
+
+To handle errors in your code:
+
+```js
+for await (const output of stream) {
+    const [type, data] = output.split('\n', 2);
+    
+    if (type === 'sideupdate') {
+        const [playerid, ...messages] = data.split('\n');
+        if (messages.some(msg => msg.startsWith('|error|'))) {
+            console.error('Invalid choice detected');
+        }
+    }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="BattleStream API" icon="stream" href="/simulator/battle-stream">
+    Deep dive into BattleStream and player streams
+  </Card>
+  <Card title="Team Formats" icon="users" href="/simulator/teams">
+    Learn about team format conversions
+  </Card>
+</CardGroup>

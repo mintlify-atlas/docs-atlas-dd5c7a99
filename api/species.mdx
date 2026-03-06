@@ -1,0 +1,668 @@
+---
+title: 'Species API'
+description: 'Access Pokemon species data including stats, types, abilities, evolution chains, and learnsets'
+---
+
+# Species API
+
+The `DexSpecies` API provides comprehensive data about Pokemon species including base stats, types, abilities, evolution chains, formes, and learnsets. Access it through `Dex.species`.
+
+## Getting Species Data
+
+```typescript
+import { Dex } from './sim/dex';
+
+// Get a species by name
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.types); // ['Electric']
+console.log(pikachu.baseStats); // { hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90 }
+
+// Get all species
+const allSpecies = Dex.species.all();
+console.log(allSpecies.length); // 1025+ (in Gen 9)
+```
+
+## Methods
+
+### get()
+
+```typescript
+Dex.species.get(name?: string | Species): Species
+```
+
+Retrieves species data by name or returns the species if already a Species object.
+
+<ParamField path="name" type="string | Species">
+  Species name (case-insensitive, spaces optional) or an existing Species object. Supports forme names like "Pikachu-Alola".
+</ParamField>
+
+<ResponseField name="return" type="Species">
+  A readonly Species object with all species properties. Returns an empty species with `exists: false` if not found.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const charizard = Dex.species.get('Charizard');
+console.log(charizard.name); // 'Charizard'
+console.log(charizard.types); // ['Fire', 'Flying']
+
+// Get a forme
+const charizardX = Dex.species.get('Charizard-Mega-X');
+console.log(charizardX.types); // ['Fire', 'Dragon']
+console.log(charizardX.baseSpecies); // 'Charizard'
+```
+
+### getByID()
+
+```typescript
+Dex.species.getByID(id: ID): Species
+```
+
+Retrieves species data by ID (lowercase, no spaces).
+
+<ParamField path="id" type="ID">
+  Species ID in lowercase alphanumeric format.
+</ParamField>
+
+**Example:**
+
+```typescript
+const species = Dex.species.getByID('charizardmegax' as ID);
+console.log(species.forme); // 'Mega-X'
+```
+
+### all()
+
+```typescript
+Dex.species.all(): readonly Species[]
+```
+
+Returns an array of all species in the current generation/mod.
+
+<ResponseField name="return" type="readonly Species[]">
+  Array of all Species objects, including formes and nonstandard species.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const allSpecies = Dex.species.all();
+const legendaries = allSpecies.filter(s => 
+  s.tags.includes('Restricted Legendary')
+);
+console.log(`${legendaries.length} restricted legendaries`);
+```
+
+### getLearnsetData()
+
+```typescript
+Dex.species.getLearnsetData(id: ID): Learnset
+```
+
+Gets the raw learnset data for a species.
+
+<ParamField path="id" type="ID">
+  Species ID.
+</ParamField>
+
+<ResponseField name="return" type="Learnset">
+  Learnset object containing move sources and event data.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const learnset = Dex.species.getLearnsetData('pikachu' as ID);
+if (learnset.learnset) {
+  console.log('Thunderbolt sources:', learnset.learnset['thunderbolt']);
+  // Output: ['9M', '8M', '7M', '6M', ...]
+}
+```
+
+### getMovePool()
+
+```typescript
+Dex.species.getMovePool(id: ID, isNatDex?: boolean): Set<ID>
+```
+
+Returns the complete set of move IDs a species can learn.
+
+<ParamField path="id" type="ID">
+  Species ID.
+</ParamField>
+
+<ParamField path="isNatDex" type="boolean">
+  If true, includes moves from all generations. If false (default), filters by current generation availability.
+</ParamField>
+
+<ResponseField name="return" type="Set<ID>">
+  Set of move IDs the species can learn.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const movePool = Dex.species.getMovePool('charizard' as ID);
+console.log(movePool.has('flamethrower' as ID)); // true
+console.log(movePool.has('surf' as ID)); // false
+console.log(movePool.size); // Total number of moves
+
+// National Dex movepool (includes past gen moves)
+const natDexPool = Dex.species.getMovePool('charizard' as ID, true);
+console.log(natDexPool.size > movePool.size); // true
+```
+
+## Species Properties
+
+### Basic Information
+
+<ParamField path="id" type="ID">
+  Unique identifier (lowercase, no spaces). Full ID including forme.
+</ParamField>
+
+<ParamField path="name" type="string">
+  Display name including forme (e.g., "Pikachu-Alola").
+</ParamField>
+
+<ParamField path="num" type="number">
+  National Dex number.
+</ParamField>
+
+<ParamField path="baseSpecies" type="string">
+  Base species name without forme. Note: Do NOT assume a Pokemon can transform from `baseSpecies` to this forme. Use `changesFrom` for that.
+</ParamField>
+
+<ParamField path="forme" type="string">
+  Forme name (e.g., "Alola", "Mega-X"). Empty string for base forme.
+</ParamField>
+
+<ParamField path="baseForme" type="string">
+  Base forme name for species with multiple base formes (e.g., "Altered" for Giratina).
+</ParamField>
+
+**Example:**
+
+```typescript
+const raichuAlola = Dex.species.get('Raichu-Alola');
+console.log(raichuAlola.id); // 'raichualola'
+console.log(raichuAlola.name); // 'Raichu-Alola'
+console.log(raichuAlola.num); // 26
+console.log(raichuAlola.baseSpecies); // 'Raichu'
+console.log(raichuAlola.forme); // 'Alola'
+```
+
+### Stats & Types
+
+<ParamField path="baseStats" type="StatsTable">
+  Base stats object: `{ hp, atk, def, spa, spd, spe }`.
+</ParamField>
+
+<ParamField path="bst" type="number">
+  Base Stat Total (sum of all base stats).
+</ParamField>
+
+<ParamField path="types" type="string[]">
+  Array of type names (1-2 types).
+</ParamField>
+
+<ParamField path="weightkg" type="number">
+  Weight in kilograms.
+</ParamField>
+
+<ParamField path="heightm" type="number">
+  Height in meters.
+</ParamField>
+
+<ParamField path="color" type="string">
+  Pokedex color.
+</ParamField>
+
+**Example:**
+
+```typescript
+const garchomp = Dex.species.get('Garchomp');
+console.log(garchomp.baseStats);
+// { hp: 108, atk: 130, def: 95, spa: 80, spd: 85, spe: 102 }
+console.log(garchomp.bst); // 600
+console.log(garchomp.types); // ['Dragon', 'Ground']
+console.log(garchomp.weightkg); // 95
+console.log(garchomp.heightm); // 1.9
+```
+
+### Abilities
+
+<ParamField path="abilities" type="SpeciesAbility">
+  Object containing ability slots: `{ 0: string, 1?: string, H?: string, S?: string }`.
+  - `0`: Primary ability
+  - `1`: Secondary ability (if any)
+  - `H`: Hidden ability
+  - `S`: Special/event ability
+</ParamField>
+
+**Example:**
+
+```typescript
+const blastoise = Dex.species.get('Blastoise');
+console.log(blastoise.abilities);
+// { 0: 'Torrent', H: 'Rain Dish' }
+
+const pidgey = Dex.species.get('Pidgey');
+console.log(pidgey.abilities);
+// { 0: 'Keen Eye', 1: 'Tangled Feet', H: 'Big Pecks' }
+```
+
+### Evolution
+
+<ParamField path="prevo" type="string">
+  Name of the pre-evolution. Empty string if this is a base forme.
+</ParamField>
+
+<ParamField path="evos" type="string[]">
+  Array of evolution names.
+</ParamField>
+
+<ParamField path="evoType" type="string">
+  Evolution method: `'trade'`, `'useItem'`, `'levelMove'`, `'levelExtra'`, `'levelFriendship'`, `'levelHold'`, `'other'`.
+</ParamField>
+
+<ParamField path="evoLevel" type="number">
+  Level at which evolution occurs (if applicable).
+</ParamField>
+
+<ParamField path="evoMove" type="string">
+  Move required for evolution (if applicable).
+</ParamField>
+
+<ParamField path="evoItem" type="string">
+  Item required for evolution (if applicable).
+</ParamField>
+
+<ParamField path="nfe" type="boolean">
+  True if Not Fully Evolved (can still evolve, excluding Mega Evolution).
+</ParamField>
+
+**Example:**
+
+```typescript
+const charmeleon = Dex.species.get('Charmeleon');
+console.log(charmeleon.prevo); // 'Charmander'
+console.log(charmeleon.evos); // ['Charizard']
+console.log(charmeleon.evoLevel); // 16
+console.log(charmeleon.nfe); // true
+
+const charizard = Dex.species.get('Charizard');
+console.log(charizard.prevo); // 'Charmeleon'
+console.log(charizard.evos); // []
+console.log(charizard.nfe); // false
+```
+
+### Breeding
+
+<ParamField path="eggGroups" type="string[]">
+  Array of egg group names.
+</ParamField>
+
+<ParamField path="canHatch" type="boolean">
+  True if this species can hatch from an egg.
+</ParamField>
+
+<ParamField path="gender" type="'M' | 'F' | 'N' | ''">
+  Gender ratio: `'M'` = always male, `'F'` = always female, `'N'` = genderless, `''` = can be either.
+</ParamField>
+
+<ParamField path="genderRatio" type="{ M: number, F: number }">
+  Precise gender ratio (adds up to 1 for gendered Pokemon).
+</ParamField>
+
+**Example:**
+
+```typescript
+const ditto = Dex.species.get('Ditto');
+console.log(ditto.eggGroups); // ['Ditto']
+console.log(ditto.gender); // 'N'
+
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.eggGroups); // ['Field', 'Fairy']
+console.log(pikachu.genderRatio); // { M: 0.5, F: 0.5 }
+
+const nidoranf = Dex.species.get('Nidoran-F');
+console.log(nidoranf.gender); // 'F'
+```
+
+### Formes
+
+<ParamField path="otherFormes" type="string[]">
+  Array of other forme names. Only appears on base forme.
+</ParamField>
+
+<ParamField path="cosmeticFormes" type="string[]">
+  Array of cosmetic forme names (visual differences only).
+</ParamField>
+
+<ParamField path="formeOrder" type="string[]">
+  Complete list of formes in game data order (base + other + cosmetic).
+</ParamField>
+
+<ParamField path="isCosmeticForme" type="boolean">
+  True if this is a purely cosmetic forme.
+</ParamField>
+
+<ParamField path="battleOnly" type="string | string[]">
+  Forme(s) this can only transform from in battle (e.g., Mega Evolutions).
+</ParamField>
+
+<ParamField path="changesFrom" type="string">
+  The forme this transforms from (for both in-battle and out-of-battle transformations).
+</ParamField>
+
+**Example:**
+
+```typescript
+const charizard = Dex.species.get('Charizard');
+console.log(charizard.otherFormes);
+// ['Charizard-Mega-X', 'Charizard-Mega-Y', 'Charizard-Gmax']
+
+const charizardX = Dex.species.get('Charizard-Mega-X');
+console.log(charizardX.battleOnly); // 'Charizard'
+console.log(charizardX.isMega); // true
+console.log(charizardX.requiredItem); // 'Charizardite X'
+
+const rotomHeat = Dex.species.get('Rotom-Heat');
+console.log(rotomHeat.changesFrom); // 'Rotom'
+```
+
+### Special Mechanics
+
+<ParamField path="isMega" type="boolean">
+  True for Mega Evolutions.
+</ParamField>
+
+<ParamField path="isPrimal" type="boolean">
+  True for Primal Reversions.
+</ParamField>
+
+<ParamField path="canGigantamax" type="string">
+  Name of G-Max move if species can Gigantamax.
+</ParamField>
+
+<ParamField path="cannotDynamax" type="boolean">
+  True if species cannot Dynamax.
+</ParamField>
+
+<ParamField path="requiredItem" type="string">
+  Item required to use this forme (e.g., Mega Stone, Griseous Orb).
+</ParamField>
+
+<ParamField path="requiredMove" type="string">
+  Move required to use this forme in battle.
+</ParamField>
+
+<ParamField path="requiredAbility" type="string">
+  Ability required to use this forme in battle.
+</ParamField>
+
+**Example:**
+
+```typescript
+const rayquazaMega = Dex.species.get('Rayquaza-Mega');
+console.log(rayquazaMega.isMega); // true
+console.log(rayquazaMega.requiredMove); // 'Dragon Ascent'
+
+const kyogrePrimal = Dex.species.get('Kyogre-Primal');
+console.log(kyogrePrimal.isPrimal); // true
+console.log(kyogrePrimal.requiredItem); // 'Blue Orb'
+
+const rillaboomGmax = Dex.species.get('Rillaboom-Gmax');
+console.log(rillaboomGmax.canGigantamax); // 'G-Max Drum Solo'
+```
+
+### Tier Information
+
+<ParamField path="tier" type="string">
+  Smogon Singles tier (e.g., 'OU', 'UU', 'Uber', 'LC').
+</ParamField>
+
+<ParamField path="doublesTier" type="string">
+  Smogon Doubles tier.
+</ParamField>
+
+<ParamField path="natDexTier" type="string">
+  National Dex tier.
+</ParamField>
+
+**Example:**
+
+```typescript
+const landorusTherian = Dex.species.get('Landorus-Therian');
+console.log(landorusTherian.tier); // 'OU'
+console.log(landorusTherian.doublesTier); // 'DOU'
+
+const groudon = Dex.species.get('Groudon');
+console.log(groudon.tier); // 'Uber'
+```
+
+### Tags
+
+<ParamField path="tags" type="SpeciesTag[]">
+  Array of tags: `'Mythical'`, `'Restricted Legendary'`, `'Sub-Legendary'`, `'Ultra Beast'`, `'Paradox'`.
+</ParamField>
+
+**Example:**
+
+```typescript
+const mew = Dex.species.get('Mew');
+console.log(mew.tags); // ['Mythical']
+
+const rayquaza = Dex.species.get('Rayquaza');
+console.log(rayquaza.tags); // ['Restricted Legendary']
+
+const ironValiant = Dex.species.get('Iron Valiant');
+console.log(ironValiant.tags); // ['Paradox']
+```
+
+## Working with Learnsets
+
+```typescript
+// Check if a Pokemon can learn a move
+function canLearn(speciesName: string, moveName: string): boolean {
+  const species = Dex.species.get(speciesName);
+  const move = Dex.moves.get(moveName);
+  const movePool = Dex.species.getMovePool(species.id as ID);
+  return movePool.has(move.id);
+}
+
+console.log(canLearn('Charizard', 'Flamethrower')); // true
+console.log(canLearn('Charizard', 'Surf')); // false
+
+// Get all moves of a specific type a Pokemon can learn
+function getMovesOfType(speciesName: string, type: string): string[] {
+  const species = Dex.species.get(speciesName);
+  const movePool = Dex.species.getMovePool(species.id as ID);
+  const moves: string[] = [];
+  
+  for (const moveId of movePool) {
+    const move = Dex.moves.get(moveId);
+    if (move.type === type) {
+      moves.push(move.name);
+    }
+  }
+  
+  return moves;
+}
+
+const fireMove = getMovesOfType('Charizard', 'Fire');
+console.log(fireMoves.slice(0, 5));
+// ['Blast Burn', 'Fire Blast', 'Fire Fang', 'Fire Pledge', 'Fire Punch']
+```
+
+## Filtering Species
+
+```typescript
+// Get all Dragon-type Pokemon
+const dragons = Dex.species.all().filter(species => 
+  species.types.includes('Dragon') && !species.isNonstandard
+);
+
+// Get all Mega Evolutions
+const megas = Dex.species.all().filter(species => 
+  species.isMega
+);
+
+// Get all Pokemon with base stat total >= 600
+const pseudoLegendaries = Dex.species.all().filter(species => 
+  species.bst >= 600 && 
+  !species.tags.length && 
+  !species.isMega &&
+  !species.isPrimal
+);
+
+// Get all fully evolved Pokemon
+const fullyEvolved = Dex.species.all().filter(species => 
+  !species.nfe && 
+  !species.isNonstandard
+);
+
+// Get all Pokemon in OU tier
+const ouPokemon = Dex.species.all().filter(species => 
+  species.tier === 'OU'
+);
+```
+
+## Generation Differences
+
+```typescript
+// Gen 1 Alakazam had different SpD
+const gen1Alakazam = Dex.mod('gen1').species.get('Alakazam');
+console.log(gen1Alakazam.baseStats);
+// In Gen 1, Special was combined
+
+// Modern Alakazam
+const alakazam = Dex.species.get('Alakazam');
+console.log(alakazam.baseStats);
+// { hp: 55, atk: 50, def: 45, spa: 135, spd: 95, spe: 120 }
+
+// Regional formes by generation
+const gen7Raichu = Dex.mod('gen7').species.get('Raichu-Alola');
+console.log(gen7Raichu.types); // ['Electric', 'Psychic']
+
+const gen8Ponyta = Dex.mod('gen8').species.get('Ponyta-Galar');
+console.log(gen8Ponyta.types); // ['Psychic']
+```
+
+## Complete Example
+
+```typescript
+import { Dex } from './sim/dex';
+
+function analyzeSpecies(speciesName: string) {
+  const species = Dex.species.get(speciesName);
+  
+  if (!species.exists) {
+    console.log(`Species "${speciesName}" not found`);
+    return;
+  }
+  
+  console.log(`=== ${species.name} ===");
+  console.log(`#${species.num} - ${species.types.join('/')}`);
+  console.log(`Base Stats (BST: ${species.bst}):`);
+  console.log(`  HP:  ${species.baseStats.hp}`);
+  console.log(`  Atk: ${species.baseStats.atk}`);
+  console.log(`  Def: ${species.baseStats.def}`);
+  console.log(`  SpA: ${species.baseStats.spa}`);
+  console.log(`  SpD: ${species.baseStats.spd}`);
+  console.log(`  Spe: ${species.baseStats.spe}`);
+  
+  console.log(`\nAbilities:`);
+  if (species.abilities[0]) console.log(`  - ${species.abilities[0]}`);
+  if (species.abilities[1]) console.log(`  - ${species.abilities[1]}`);
+  if (species.abilities.H) console.log(`  - ${species.abilities.H} (Hidden)`);
+  
+  if (species.prevo) {
+    console.log(`\nEvolves from: ${species.prevo}`);
+  }
+  if (species.evos.length) {
+    console.log(`Evolves into: ${species.evos.join(', ')}`);
+  }
+  
+  console.log(`\nTier: ${species.tier}`);
+  
+  if (species.tags.length) {
+    console.log(`Tags: ${species.tags.join(', ')}`);
+  }
+  
+  // Get movepool size
+  const movePool = Dex.species.getMovePool(species.id as ID);
+  console.log(`\nCan learn ${movePool.size} moves`);
+}
+
+analyzeSpecies('Garchomp');
+analyzeSpecies('Charizard-Mega-X');
+analyzeSpecies('Landorus-Therian');
+```
+
+## Type Definitions
+
+```typescript
+interface Species {
+  readonly id: ID;
+  readonly name: string;
+  readonly num: number;
+  readonly baseSpecies: string;
+  readonly forme: string;
+  readonly types: string[];
+  readonly baseStats: StatsTable;
+  readonly bst: number;
+  readonly abilities: SpeciesAbility;
+  readonly weightkg: number;
+  readonly heightm: number;
+  readonly prevo: string;
+  readonly evos: string[];
+  readonly evoLevel?: number;
+  readonly nfe: boolean;
+  readonly eggGroups: string[];
+  readonly gender: 'M' | 'F' | 'N' | '';
+  readonly tier: string;
+  readonly doublesTier: string;
+  readonly tags: SpeciesTag[];
+  readonly exists: boolean;
+  readonly isNonstandard: string | null;
+  // ... many more properties
+}
+
+interface SpeciesAbility {
+  0: string;
+  1?: string;
+  H?: string;
+  S?: string;
+}
+
+type StatsTable = {
+  hp: number;
+  atk: number;
+  def: number;
+  spa: number;
+  spd: number;
+  spe: number;
+};
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Dex API" icon="book" href="/api/dex">
+    Main Dex interface and utility methods
+  </Card>
+  
+  <Card title="Moves API" icon="wind" href="/api/moves">
+    Move data and damage calculations
+  </Card>
+  
+  <Card title="Abilities API" icon="sparkles" href="/api/abilities">
+    Ability effects and interactions
+  </Card>
+  
+  <Card title="Items API" icon="gem" href="/api/items">
+    Item data and held item effects
+  </Card>
+</CardGroup>

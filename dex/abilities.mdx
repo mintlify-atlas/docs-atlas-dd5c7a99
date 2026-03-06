@@ -1,0 +1,473 @@
+---
+title: 'Abilities API'
+description: 'Access ability data including effects, ratings, and generation availability'
+---
+
+## Overview
+
+The Abilities API provides information about Pokémon abilities including their effects, competitive ratings, and when they were introduced.
+
+## Basic Usage
+
+### Get an Ability
+
+Retrieve ability information using `Dex.abilities.get()`:
+
+```javascript
+const {Dex} = require('pokemon-showdown');
+
+const overgrow = Dex.abilities.get('Overgrow');
+console.log(overgrow.name); // 'Overgrow'
+console.log(overgrow.rating); // 2
+console.log(overgrow.num); // 65
+```
+
+<Note>
+Ability names are case-insensitive and whitespace is ignored.
+</Note>
+
+```javascript
+// All of these work
+Dex.abilities.get('overgrow');
+Dex.abilities.get('Overgrow');
+Dex.abilities.get('OVERGROW');
+Dex.abilities.get('O v e r g r o w');
+```
+
+## Ability Properties
+
+<CodeGroup>
+
+```javascript Basic Properties
+const intimidate = Dex.abilities.get('Intimidate');
+
+console.log(intimidate.name); // 'Intimidate'
+console.log(intimidate.num); // Ability dex number
+console.log(intimidate.rating); // 3.5
+// Rating scale: -1 to 5
+// 5 = Essential, 4 = Very useful, 3 = Effective,
+// 2 = Useful, 1 = Ineffective, 0 = Useless, -1 = Detrimental
+```
+
+```javascript Flags
+const disguise = Dex.abilities.get('Disguise');
+
+console.log(disguise.flags);
+// { failroleplay: 1, noreceiver: 1, 
+//   noentrain: 1, notrace: 1, 
+//   failskillswap: 1, cantsuppress: 1,
+//   breakable: 1, notransform: 1 }
+
+// Common flags:
+// breakable - Can be bypassed by Mold Breaker
+// cantsuppress - Cannot be suppressed
+// failroleplay - Cannot be copied by Role Play
+```
+
+```javascript Generation Info
+const intimidate = Dex.abilities.get('Intimidate');
+
+console.log(intimidate.gen); // undefined (Gen 3+)
+
+const protosynthesis = Dex.abilities.get('Protosynthesis');
+console.log(protosynthesis.num); // 281
+console.log(protosynthesis.rating); // 3
+```
+
+</CodeGroup>
+
+## Ability Ratings
+
+Abilities are rated on their competitive viability:
+
+<CodeGroup>
+
+```javascript Essential (5)
+const imposter = Dex.abilities.get('Imposter');
+console.log(imposter.rating); // 5
+// Metagame-defining abilities
+
+const shadowTag = Dex.abilities.get('Shadow Tag');
+console.log(shadowTag.rating); // 5
+```
+
+```javascript Very Useful (4)
+const adaptability = Dex.abilities.get('Adaptability');
+console.log(adaptability.rating); // 4
+// Popular abilities requiring minimal support
+
+const magicBounce = Dex.abilities.get('Magic Bounce');
+console.log(magicBounce.rating); // 4
+```
+
+```javascript Effective (3)
+const chlorophyll = Dex.abilities.get('Chlorophyll');
+console.log(chlorophyll.rating); // 3
+// Strong effect on user or foe
+
+const sturdy = Dex.abilities.get('Sturdy');
+console.log(sturdy.rating); // 3
+```
+
+```javascript Detrimental (-1)
+const defeatist = Dex.abilities.get('Defeatist');
+console.log(defeatist.rating); // -1
+// Severely harms the user
+
+const slowStart = Dex.abilities.get('Slow Start');
+console.log(slowStart.rating); // -1
+```
+
+</CodeGroup>
+
+## Common Ability Types
+
+### Type-Boosting Abilities
+
+```javascript
+// Starter abilities
+const overgrow = Dex.abilities.get('Overgrow');
+const blaze = Dex.abilities.get('Blaze');
+const torrent = Dex.abilities.get('Torrent');
+
+console.log(overgrow.name); // 'Overgrow'
+console.log(blaze.name); // 'Blaze'
+console.log(torrent.name); // 'Torrent'
+// All boost type moves at 1/3 HP
+
+// STAB boosters
+const adaptability = Dex.abilities.get('Adaptability');
+console.log(adaptability.rating); // 4
+// Increases STAB from 1.5x to 2x
+```
+
+### Weather Abilities
+
+```javascript
+const drought = Dex.abilities.get('Drought');
+const drizzle = Dex.abilities.get('Drizzle');
+const sandStream = Dex.abilities.get('Sand Stream');
+const snowWarning = Dex.abilities.get('Snow Warning');
+
+console.log(drought.rating); // 4
+console.log(drizzle.rating); // 4
+// Automatically set weather on switch-in
+
+// Weather beneficiaries
+const chlorophyll = Dex.abilities.get('Chlorophyll');
+const swiftSwim = Dex.abilities.get('Swift Swim');
+
+console.log(chlorophyll.rating); // 3
+// Doubles Speed in sun
+console.log(swiftSwim.rating); // 3
+// Doubles Speed in rain
+```
+
+### Defensive Abilities
+
+<CodeGroup>
+
+```javascript Immunity
+const levitate = Dex.abilities.get('Levitate');
+console.log(levitate.rating); // 3.5
+// Immune to Ground-type moves
+
+const waterAbsorb = Dex.abilities.get('Water Absorb');
+console.log(waterAbsorb.rating); // 3.5
+// Immune to Water, heals 1/4 HP
+
+const voltAbsorb = Dex.abilities.get('Volt Absorb');
+console.log(voltAbsorb.rating); // 3.5
+```
+
+```javascript Damage Reduction
+const filter = Dex.abilities.get('Filter');
+console.log(filter.rating); // 3
+console.log(filter.flags.breakable); // 1
+// Reduces super effective damage by 25%
+
+const multiscale = Dex.abilities.get('Multiscale');
+console.log(multiscale.rating); // 4
+// Halves damage at full HP
+```
+
+```javascript Stat Boost
+const furCoat = Dex.abilities.get('Fur Coat');
+console.log(furCoat.rating); // 4
+console.log(furCoat.flags.breakable); // 1
+// Doubles Defense stat
+
+const hugePower = Dex.abilities.get('Huge Power');
+console.log(hugePower.rating); // 5
+// Doubles Attack stat
+```
+
+</CodeGroup>
+
+### Offensive Abilities
+
+```javascript
+const sheerForce = Dex.abilities.get('Sheer Force');
+console.log(sheerForce.rating); // 3.5
+// Removes secondary effects, increases power by 30%
+
+const technician = Dex.abilities.get('Technician');
+console.log(technician.rating); // 3.5
+// Boosts moves with 60 BP or less by 50%
+
+const skillLink = Dex.abilities.get('Skill Link');
+console.log(skillLink.rating); // 3
+// Multi-hit moves always hit 5 times
+```
+
+### Status Abilities
+
+```javascript
+const synchronize = Dex.abilities.get('Synchronize');
+console.log(synchronize.rating); // 2
+// Passes status conditions to opponent
+
+const magicGuard = Dex.abilities.get('Magic Guard');
+console.log(magicGuard.rating); // 4
+// Immune to indirect damage
+
+const naturalCure = Dex.abilities.get('Natural Cure');
+console.log(naturalCure.rating); // 2.5
+// Cures status on switch-out
+```
+
+## Signature Abilities
+
+### Legendary Abilities
+
+```javascript
+// Primal abilities
+const desolateLand = Dex.abilities.get('Desolate Land');
+console.log(desolateLand.rating); // 4.5
+// Permanent harsh sunlight
+
+const primoridialSea = Dex.abilities.get('Primordial Sea');
+console.log(primoridialSea.rating); // 4.5
+// Permanent heavy rain
+
+const deltaStream = Dex.abilities.get('Delta Stream');
+console.log(deltaStream.rating); // 4
+// Permanent strong winds
+```
+
+### Unique Mechanic Abilities
+
+```javascript
+const disguise = Dex.abilities.get('Disguise');
+console.log(disguise.rating); // 3.5
+console.log(disguise.flags);
+// { failroleplay: 1, noreceiver: 1, ... }
+// Blocks first hit, forme changes
+
+const stanceChange = Dex.abilities.get('Stance Change');
+console.log(stanceChange.flags.failroleplay); // 1
+// Cannot be copied or swapped
+
+const powerConstruct = Dex.abilities.get('Power Construct');
+console.log(powerConstruct.flags.cantsuppress); // 1
+// Cannot be suppressed
+```
+
+## List All Abilities
+
+Retrieve all ability data:
+
+```javascript
+const allAbilities = Dex.abilities.all();
+
+console.log(allAbilities.length); // 300+ abilities
+console.log(allAbilities[0].name);
+
+// Filter by rating
+const topAbilities = allAbilities.filter(a => 
+  a.exists && !a.isNonstandard && a.rating >= 4
+);
+
+topAbilities.forEach(a => {
+  console.log(`${a.name}: Rating ${a.rating}`);
+});
+```
+
+<Warning>
+The `.all()` method includes nonstandard abilities from CAP and past generations. Always check `exists` and `isNonstandard` properties.
+</Warning>
+
+## Generation-Specific Data
+
+Abilities were introduced in Generation 3:
+
+```javascript
+// Gen 1 has no abilities
+const gen1Dex = Dex.mod('gen1');
+const gen1Abilities = gen1Dex.abilities.all();
+console.log(gen1Abilities.length); // 0
+
+// Gen 3 introduced abilities
+const gen3Dex = Dex.mod('gen3');
+const intimidate = gen3Dex.abilities.get('Intimidate');
+console.log(intimidate.exists); // true
+
+// Some abilities were added later
+const multiscale = Dex.abilities.get('Multiscale');
+// Introduced in Gen 5
+
+const protosynthesis = Dex.abilities.get('Protosynthesis');
+// Introduced in Gen 9
+```
+
+## Ability Flags
+
+Abilities have various flags indicating restrictions:
+
+<CodeGroup>
+
+```javascript Cannot Be Copied
+const imposter = Dex.abilities.get('Imposter');
+console.log(imposter.flags);
+// { failroleplay: 1, noreceiver: 1,
+//   noentrain: 1, notrace: 1,
+//   failskillswap: 1 }
+
+const disguise = Dex.abilities.get('Disguise');
+console.log(disguise.flags.notrace); // 1
+```
+
+```javascript Breakable
+const sturdy = Dex.abilities.get('Sturdy');
+console.log(sturdy.flags.breakable); // 1
+// Can be bypassed by Mold Breaker
+
+const levitate = Dex.abilities.get('Levitate');
+console.log(levitate.flags.breakable); // 1
+```
+
+```javascript Cannot Be Suppressed
+const battleBond = Dex.abilities.get('Battle Bond');
+console.log(battleBond.flags.cantsuppress); // 1
+// Cannot be suppressed by Neutralizing Gas
+
+const comatose = Dex.abilities.get('Comatose');
+console.log(comatose.flags.cantsuppress); // 1
+```
+
+</CodeGroup>
+
+## Checking Ability Existence
+
+```javascript
+const overgrow = Dex.abilities.get('Overgrow');
+console.log(overgrow.exists); // true
+console.log(overgrow.isNonstandard); // null (standard)
+
+const rebound = Dex.abilities.get('Rebound');
+console.log(rebound.exists); // true
+console.log(rebound.isNonstandard); // 'CAP'
+// Create-A-Pokémon ability
+
+const fakeAbility = Dex.abilities.get('Not Real');
+console.log(fakeAbility.exists); // false
+```
+
+## Practical Examples
+
+### Find All Weather-Setting Abilities
+
+```javascript
+const weatherSetters = ['Drought', 'Drizzle', 'Sand Stream', 
+                        'Snow Warning', 'Desolate Land', 'Primordial Sea'];
+
+weatherSetters.forEach(name => {
+  const ability = Dex.abilities.get(name);
+  console.log(`${ability.name}: Rating ${ability.rating}`);
+});
+```
+
+### Get Top-Rated Abilities
+
+```javascript
+const topRated = Dex.abilities.all()
+  .filter(a => a.exists && !a.isNonstandard)
+  .filter(a => a.rating === 5)
+  .map(a => a.name);
+
+console.log('Essential abilities:', topRated);
+```
+
+### Find Immunity Abilities
+
+```javascript
+const immunityNames = [
+  'Levitate', 'Water Absorb', 'Volt Absorb', 
+  'Flash Fire', 'Sap Sipper', 'Lightning Rod',
+  'Storm Drain', 'Dry Skin', 'Earth Eater'
+];
+
+immunityNames.forEach(name => {
+  const ability = Dex.abilities.get(name);
+  if (ability.exists) {
+    console.log(`${ability.name}: Rating ${ability.rating}`);
+  }
+});
+```
+
+### Check Ability Restrictions
+
+```javascript
+function canBeCopied(abilityName) {
+  const ability = Dex.abilities.get(abilityName);
+  return !ability.flags?.failroleplay && 
+         !ability.flags?.notrace &&
+         !ability.flags?.noreceiver;
+}
+
+console.log(canBeCopied('Intimidate')); // true
+console.log(canBeCopied('Disguise')); // false
+```
+
+## Ability Effects
+
+<Note>
+Ability effects are implemented via callback functions. While these aren't directly usable, they show how abilities work.
+</Note>
+
+```javascript
+const intimidate = Dex.abilities.get('Intimidate');
+
+console.log(intimidate.onStart);
+// function(pokemon) {
+//   Lowers adjacent opponents' Attack by 1 stage
+// }
+
+const speedBoost = Dex.abilities.get('Speed Boost');
+console.log(speedBoost.onResidual);
+// function(pokemon) {
+//   Increases Speed by 1 stage at end of turn
+// }
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+
+<Card title="Species API" icon="dragon" href="/dex/species">
+Query Pokémon that have specific abilities
+</Card>
+
+<Card title="Moves API" icon="bolt" href="/dex/moves">
+Learn about move interactions with abilities
+</Card>
+
+<Card title="Items API" icon="gem" href="/dex/items">
+Discover Ability Shield and other items
+</Card>
+
+<Card title="Formats Data" icon="list" href="/dex/formats-data">
+Check format-specific ability restrictions
+</Card>
+
+</CardGroup>

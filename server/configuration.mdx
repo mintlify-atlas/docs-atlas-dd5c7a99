@@ -1,0 +1,540 @@
+---
+title: 'Server Configuration'
+description: 'Configure your Pokemon Showdown server settings'
+icon: 'gear'
+---
+
+## Configuration File
+
+Pokemon Showdown uses `config/config.js` for server configuration. This file must be created from the example template:
+
+```bash
+cp config/config-example.js config/config.js
+```
+
+<Note>
+  The configuration file supports hot-reloading by default. Changes will be automatically detected and applied without restarting the server.
+</Note>
+
+## Network Settings
+
+### Server Port
+
+The port your server listens on for connections:
+
+```javascript config/config.js
+exports.port = 8000;
+```
+
+**Default:** `8000`
+
+### Bind Address
+
+The network interface address to bind to:
+
+```javascript config/config.js
+exports.bindaddress = '0.0.0.0';
+```
+
+**Default:** `0.0.0.0` (all interfaces)
+
+<Warning>
+  Don't change this setting unless you know what you're doing. The default `0.0.0.0` allows connections from all network interfaces.
+</Warning>
+
+### SSL/HTTPS Configuration
+
+Enable secure WebSocket connections (WSS) for HTTPS access:
+
+```javascript config/config.js
+exports.ssl = {
+  port: 443,
+  options: {
+    key: './config/ssl/privkey.pem',
+    cert: './config/ssl/fullchain.pem',
+  },
+};
+```
+
+**Default:** `null` (disabled)
+
+<Note>
+  The client requires port 443 for SSL. If you use a different port, you'll need to forward it to 443 using iptables or similar tools.
+</Note>
+
+#### Let's Encrypt Example
+
+Here's an example deploy script for Let's Encrypt certificates:
+
+```bash
+cp /etc/letsencrypt/live/sim.psim.us/privkey.pem ~/Pokemon-Showdown/config/ssl/
+cp /etc/letsencrypt/live/sim.psim.us/fullchain.pem ~/Pokemon-Showdown/config/ssl/
+chown user:user ~/Pokemon-Showdown/config/ssl/privkey.pem
+chown user:user ~/Pokemon-Showdown/config/ssl/fullchain.pem
+```
+
+### WebSocket Compression
+
+Enable message compression for WebSocket connections:
+
+```javascript config/config.js
+exports.wsdeflate = {
+  level: 5,
+  memLevel: 8,
+  strategy: 0,
+  noContextTakeover: true,
+  requestNoContextTakeover: true,
+  maxWindowBits: 15,
+  requestMaxWindowBits: 15,
+};
+```
+
+**Default:** `null` (disabled)
+
+<Warning>
+  Message compression may increase processing time. Only enable if bandwidth is a concern.
+</Warning>
+
+### Proxy Configuration
+
+Trust X-Forwarded-For headers from specific proxy IPs:
+
+```javascript config/config.js
+exports.proxyip = ['127.0.0.1', '10.0.0.0/8'];
+```
+
+**Default:** `false` (don't trust any proxies)
+
+<Note>
+  Each string should be either an IP address or a subnet in CIDR notation. Leave as `false` unless you're running behind a reverse proxy.
+</Note>
+
+## Performance Settings
+
+### Subprocess Configuration
+
+Configure child processes for various server tasks:
+
+```javascript config/config.js
+exports.subprocesses = {
+  network: 1,      // Network worker processes
+  simulator: 1,    // Battle simulation workers
+  validator: 1,    // Team validation workers
+  verifier: 1,     // User authentication workers
+  localartemis: 1,
+  remoteartemis: 1,
+  friends: 1,
+  chatdb: 1,
+  modlog: 1,
+  pm: 1,
+  battlesearch: 1,
+  datasearch: 1,
+};
+```
+
+<Warning>
+  **Network workers:** Should not exceed the number of CPU threads available. Check your CPU thread count:
+  
+  ```bash
+  node -e "console.log(require('os').cpus().length)"
+  ```
+  
+  Using more workers than available threads will cause performance issues.
+</Warning>
+
+<Note>
+  **Simulator workers:** Only increase for servers with hundreds of concurrent battles. For most servers, leave at 1.
+</Note>
+
+To disable subprocesses entirely (useful for low-memory environments):
+
+```javascript config/config.js
+exports.subprocesses = 0;
+```
+
+### Lazy Sockets
+
+Disable automatic network initialization:
+
+```javascript config/config.js
+exports.lazysockets = true;
+```
+
+**Default:** `false`
+
+Use this if you want to manually connect the server to the network or run it offline.
+
+## Chat and Moderation
+
+### Modchat Settings
+
+Set minimum rank requirements for participation:
+
+```javascript config/config.js
+exports.chatmodchat = false;        // Chat rooms
+exports.battlemodchat = false;      // Battles
+exports.pmmodchat = false;          // Private messages
+exports.laddermodchat = false;      // Ladder battles
+```
+
+**Options:** `false` (anyone) or a group symbol (`'+'`, `'%'`, `'@'`, `'#'`, `'~'`) or `'autoconfirmed'`
+
+<Note>
+  These settings can be used as a whitelist - set to `'+'` and voice every user you want whitelisted.
+</Note>
+
+### Join/Leave Messages
+
+Control join and leave message display:
+
+```javascript config/config.js
+exports.reportjoins = true;
+exports.reportjoinsperiod = 0;  // Milliseconds for batched reports
+```
+
+<Warning>
+  Join messages can cause lag on larger servers (80+ users). Consider disabling or using batched reporting.
+</Warning>
+
+### Battle Reporting
+
+Show battle start messages in the lobby:
+
+```javascript config/config.js
+exports.reportbattles = true;
+exports.reportbattlejoins = true;
+```
+
+<Note>
+  Disable `reportbattlejoins` on large tournament servers to reduce chat spam.
+</Note>
+
+### Link Restrictions
+
+Restrict link posting to autoconfirmed users:
+
+```javascript config/config.js
+exports.restrictLinks = false;
+```
+
+**Default:** `false`
+
+Set to `true` to combat spam and malicious links.
+
+### Name Filter
+
+Remove Unicode characters used for impersonation:
+
+```javascript config/config.js
+exports.disablebasicnamefilter = false;
+```
+
+**Default:** `false` (filter enabled)
+
+<Warning>
+  Only disable if you need Greek, Cyrillic, or other alphabets that may be filtered.
+</Warning>
+
+## Punishment Settings
+
+### Punishment Monitor
+
+Notify staff when users accumulate room punishments:
+
+```javascript config/config.js
+exports.monitorminpunishments = 3;
+```
+
+**Default:** `3` punishments
+
+Set to `0` to disable the monitor.
+
+### Auto-Lock
+
+Automatically lock users with multiple room bans:
+
+```javascript config/config.js
+exports.punishmentautolock = false;
+```
+
+**Default:** `false`
+
+<Note>
+  Requires `monitorminpunishments` to be greater than 0. Auto-locks users with 3+ active room bans.
+</Note>
+
+### Throttles and Checks
+
+Disable rate limiting and IP checking (for development):
+
+```javascript config/config.js
+exports.nothrottle = false;  // Disable all time-based throttles
+exports.noipchecks = false;  // Disable IP-based alt checking
+```
+
+<Warning>
+  Never enable these on production servers - they disable important security features.
+</Warning>
+
+## Logging
+
+### Chat Logging
+
+Log all chat room messages:
+
+```javascript config/config.js
+exports.logchat = false;
+exports.logchallenges = false;  // Log challenge battles
+exports.loguserstats = 1000 * 60 * 10;  // User stats interval (10 minutes)
+```
+
+### Chat Log Reader
+
+Choose the search method for chat logs:
+
+```javascript config/config.js
+exports.chatlogreader = 'fs';  // or 'ripgrep'
+```
+
+**Options:** `'fs'` (Node.js filesystem) or `'ripgrep'` (faster, requires ripgrep installed)
+
+## Game Settings
+
+### Pokemon of the Day
+
+Set a Pokemon to always appear in slot #2 of Random Battle teams:
+
+```javascript config/config.js
+exports.potd = 'pikachu';
+```
+
+**Default:** `''` (disabled)
+
+### Forced Timer
+
+Force the battle timer on for all battles:
+
+```javascript config/config.js
+exports.forcetimer = false;
+```
+
+### Draw Requests
+
+Allow players to offer and accept draws:
+
+```javascript config/config.js
+exports.allowrequestingties = true;
+```
+
+### Force Registration
+
+Require registration for ladder battles above a certain ELO:
+
+```javascript config/config.js
+exports.forceregisterelo = false;  // or a number like 1200
+```
+
+## Tournament Settings
+
+```javascript config/config.js
+exports.tourroom = '';  // Main tournament room
+exports.tourannouncements = [];  // Allowed announcement rooms
+exports.tourdefaultplayercap = 0;  // Default player cap (0 = unlimited)
+exports.ratedtours = false;  // Make tournaments ladder-rated
+```
+
+## Security Settings
+
+### Crash Guard
+
+Write errors to log instead of crashing:
+
+```javascript config/config.js
+exports.crashguard = true;
+```
+
+**Default:** `true`
+
+<Note>
+  While enabled by default for convenience, it's generally better to let Node.js crash and restart the server properly.
+</Note>
+
+### Crash Guard Email
+
+Send email alerts for crashes (requires nodemailer):
+
+```javascript config/config.js
+exports.crashguardemail = {
+  options: {
+    host: 'mail.example.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: 'example@domain.com',
+      pass: 'password'
+    }
+  },
+  from: 'crashlogger@example.com',
+  to: 'admin@example.com',
+  subject: 'Pokemon Showdown has crashed!'
+};
+```
+
+**Default:** `null` (disabled)
+
+Install nodemailer to use this feature:
+
+```bash
+npm install nodemailer
+```
+
+### Auto Lockdown
+
+Automatically shut down after lockdown battles finish:
+
+```javascript config/config.js
+exports.autolockdown = true;
+```
+
+### Console Access
+
+IP addresses allowed to use the developer console:
+
+```javascript config/config.js
+exports.consoleips = ['127.0.0.1'];
+```
+
+**Default:** `['127.0.0.1']` (localhost only)
+
+<Warning>
+  The console allows arbitrary command execution. Only add highly trusted IPs. Set to `[]` to disable entirely.
+</Warning>
+
+### Backdoor Access
+
+Allow Pokemon Showdown system operators to provide tech support:
+
+```javascript config/config.js
+exports.backdoor = true;
+```
+
+**Default:** `true`
+
+<Note>
+  This gives Showdown system operators (like Zarel) console admin access for technical support. Disable if you don't trust them with admin access.
+</Note>
+
+### Development Mode
+
+Allow login without authentication (development only):
+
+```javascript config/config.js
+exports.noguestsecurity = false;
+```
+
+<Warning>
+  **NEVER** enable this on production servers. It allows anyone to log in as any user with `/trn [USERNAME]`.
+</Warning>
+
+## Login Server
+
+Configure authentication with the main Pokemon Showdown login server:
+
+```javascript config/config.js
+exports.loginserver = 'http://play.pokemonshowdown.com/';
+exports.loginserverkeyalgo = "RSA-SHA1";
+exports.loginserverpublickeyid = 4;
+exports.loginserverpublickey = `-----BEGIN PUBLIC KEY-----
+...public key data...
+-----END PUBLIC KEY-----`;
+```
+
+<Warning>
+  Don't change these settings - there aren't any other login servers available.
+</Warning>
+
+## Routes
+
+Configure Pokemon Showdown hosting domains:
+
+```javascript config/config.js
+exports.routes = {
+  root: 'pokemonshowdown.com',
+  client: 'play.pokemonshowdown.com',
+  dex: 'dex.pokemonshowdown.com',
+  replays: 'replay.pokemonshowdown.com',
+};
+```
+
+## Advanced Options
+
+### Config Watch
+
+Automatically reload config file on changes:
+
+```javascript config/config.js
+exports.watchconfig = true;
+```
+
+### Hotpatch Restrictions
+
+Disable `/hotpatch all` command:
+
+```javascript config/config.js
+exports.disablehotpatchall = false;
+```
+
+### Battle Search
+
+Configure battle search functionality:
+
+```javascript config/config.js
+exports.nobattlesearch = false;  // true to disable, 'psbattletools' for alternative
+```
+
+### REPL Sockets
+
+Enable/configure REPL (Read-Eval-Print Loop) sockets:
+
+```javascript config/config.js
+exports.repl = true;
+exports.replsocketprefix = './logs/repl/';
+exports.replsocketmode = 0o600;
+```
+
+### Inactive User Threshold
+
+How long before inactive users are pruned:
+
+```javascript config/config.js
+exports.inactiveuserthreshold = 1000 * 60 * 60;  // 1 hour
+```
+
+### Appeal URL
+
+URL for users to appeal disciplinary actions:
+
+```javascript config/config.js
+exports.appealurl = 'https://example.com/appeal';
+```
+
+### Startup Hook
+
+Function to call when server is ready:
+
+```javascript config/config.js
+exports.startuphook = function () {
+  console.log('Server is ready!');
+};
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Administration" icon="user-shield" href="/server/administration">
+    Set up user management and moderation
+  </Card>
+  <Card title="Security" icon="shield" href="/server/security">
+    Secure your production server
+  </Card>
+</CardGroup>

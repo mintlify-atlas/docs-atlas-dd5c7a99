@@ -1,0 +1,484 @@
+---
+title: 'Team Commands'
+description: 'Generate, validate, and convert Pokemon teams using command-line tools'
+---
+
+## Overview
+
+Pokemon Showdown provides several CLI commands for working with teams:
+
+- **generate-team** - Generate random teams for any format
+- **validate-team** - Validate teams against format rules
+- **pack-team** - Convert teams to packed format
+- **export-team** - Convert teams to human-readable format
+- **json-team** - Convert teams to JSON format
+
+All team commands use standard input/output, making them easy to pipe together.
+
+<Note>
+  Commands that read teams from stdin accept teams in **any format** (packed, JSON, or exported). However, teambuilder export format may require the entire team to be provided at once.
+</Note>
+
+## generate-team
+
+Generates a random team for the specified format and writes it to stdout in packed format.
+
+### Syntax
+
+```bash
+./pokemon-showdown generate-team [FORMAT-ID] [RANDOM-SEED]
+```
+
+### Parameters
+
+- `FORMAT-ID` (optional) - The format to generate for (defaults to the latest Random Battles format)
+- `RANDOM-SEED` (optional) - Seed for reproducible team generation
+
+### Examples
+
+#### Generate a Random Battle Team
+
+```bash
+./pokemon-showdown generate-team
+./pokemon-showdown generate-team gen9randombattle
+```
+
+Output (packed format):
+```
+Pikachu|||lightball|thunderbolt,grassknot,surf,voltswitch|Hasty|,252,,,4,252|||||]Charizard||leftovers||flamethrower,airslash,roost,willowisp|Timid|,,,252,4,252||,,,30,,|||]...
+```
+
+#### Generate for Different Formats
+
+<CodeGroup>
+```bash Gen 9 OU
+./pokemon-showdown generate-team gen9ou
+```
+
+```bash Gen 8 Random Battle
+./pokemon-showdown generate-team gen8randombattle
+```
+
+```bash Gen 7 Ubers
+./pokemon-showdown generate-team gen7ubers
+```
+
+```bash VGC 2024
+./pokemon-showdown generate-team gen9vgc2024
+```
+</CodeGroup>
+
+#### Reproducible Generation
+
+Use a seed to generate the same team every time:
+
+```bash
+./pokemon-showdown generate-team gen9randombattle myseed123
+```
+
+### Piping to Other Commands
+
+#### Generate and Export
+
+Generate a team and immediately convert it to human-readable format:
+
+```bash
+./pokemon-showdown generate-team gen8randombattle | ./pokemon-showdown export-team
+```
+
+Output:
+```
+Kartana @ Choice Band
+Ability: Beast Boost
+Level: 74
+EVs: 85 HP / 85 Atk / 85 Def / 85 SpA / 85 SpD / 85 Spe
+- Smart Strike
+- Sacred Sword
+- Knock Off
+- Leaf Blade
+
+Rotom (Rotom-Heat) @ Heavy-Duty Boots
+Ability: Levitate
+Level: 82
+EVs: 85 HP / 85 Def / 85 SpA / 85 SpD / 85 Spe
+IVs: 0 Atk
+- Defog
+- Will-O-Wisp
+- Thunderbolt
+- Overheat
+...
+```
+
+#### Generate and Validate
+
+Generate a Random Battle team and validate it against standard OU:
+
+```bash
+./pokemon-showdown generate-team gen8randombattle | ./pokemon-showdown validate-team gen8ou
+```
+
+Output (errors expected since Random Battle and OU have different rules):
+```
+Your set for Coalossal is flagged as Gigantamax, but Gigantamaxing is disallowed
+(If this was a mistake, disable Gigantamaxing on the set.)
+Octillery's ability Moody is banned.
+```
+
+## validate-team
+
+Validates a team against format rules by reading from stdin.
+
+### Syntax
+
+```bash
+./pokemon-showdown validate-team [FORMAT-ID]
+```
+
+### Parameters
+
+- `FORMAT-ID` (optional) - The format to validate against
+
+### Exit Codes
+
+- `0` - Team is valid
+- `1` - Team is invalid (errors written to stderr)
+
+### Examples
+
+#### Validate from File
+
+```bash
+./pokemon-showdown validate-team gen9ou < myteam.txt
+```
+
+#### Validate with Pipe
+
+```bash
+echo "Pikachu|||lightball|thunderbolt,grassknot,surf,voltswitch|Hasty|,252,,,4,252|||||" | ./pokemon-showdown validate-team gen9ou
+```
+
+#### Check Validation Result
+
+```bash
+./pokemon-showdown validate-team gen9ou < team.txt
+if [ $? -eq 0 ]; then
+    echo "Team is valid!"
+else
+    echo "Team is invalid!"
+fi
+```
+
+### Common Validation Errors
+
+<Warning>
+  The validator checks many rules including:
+  - Banned Pokemon, moves, items, and abilities
+  - Species clause (no duplicate Pokemon)
+  - Illegal move combinations
+  - Invalid stat distributions
+  - Format-specific restrictions
+</Warning>
+
+Example errors:
+
+```
+Your set for Mew is flagged as Gigantamax, but Gigantamaxing is disallowed
+Mewtwo is banned.
+Rayquaza is banned unless it is not holding a Mega Stone.
+Arceus's ability is blanket-banned.
+```
+
+## pack-team
+
+Converts a team from any format to packed format.
+
+### Syntax
+
+```bash
+./pokemon-showdown pack-team
+```
+
+Reads team from stdin, writes packed team to stdout.
+
+### Examples
+
+#### Convert Export to Packed
+
+```bash
+cat team-export.txt | ./pokemon-showdown pack-team
+```
+
+Input (export format):
+```
+Pikachu @ Light Ball
+Ability: Lightning Rod
+EVs: 252 Atk / 4 SpD / 252 Spe
+Hasty Nature
+- Thunderbolt
+- Grass Knot
+- Surf
+- Volt Switch
+```
+
+Output (packed format):
+```
+Pikachu|||lightball|thunderbolt,grassknot,surf,voltswitch|Hasty|,252,,,4,252|||||
+```
+
+#### Save Packed Team
+
+```bash
+./pokemon-showdown pack-team < team-export.txt > team-packed.txt
+```
+
+## export-team
+
+Converts a team from any format to human-readable export format.
+
+### Syntax
+
+```bash
+./pokemon-showdown export-team
+```
+
+Reads team from stdin, writes exported team to stdout.
+
+### Examples
+
+#### Convert Packed to Export
+
+```bash
+echo "Pikachu|||lightball|thunderbolt,grassknot,surf,voltswitch|Hasty|,252,,,4,252|||||" | ./pokemon-showdown export-team
+```
+
+Output:
+```
+Pikachu @ Light Ball
+Ability: Lightning Rod
+EVs: 252 Atk / 4 SpD / 252 Spe
+Hasty Nature
+- Thunderbolt
+- Grass Knot
+- Surf
+- Volt Switch
+```
+
+#### Export from File
+
+```bash
+./pokemon-showdown export-team < team-packed.txt
+```
+
+#### Save Export
+
+```bash
+./pokemon-showdown export-team < team-packed.txt > team-export.txt
+```
+
+## json-team
+
+Converts a team from any format to JSON format.
+
+### Syntax
+
+```bash
+./pokemon-showdown json-team
+```
+
+Reads team from stdin, writes JSON to stdout.
+
+### Examples
+
+#### Convert to JSON
+
+```bash
+echo "Pikachu|||lightball|thunderbolt,grassknot,surf,voltswitch|Hasty|,252,,,4,252|||||" | ./pokemon-showdown json-team
+```
+
+Output:
+```json
+[
+  {
+    "name": "",
+    "species": "Pikachu",
+    "gender": "",
+    "item": "Light Ball",
+    "ability": "Lightning Rod",
+    "evs": {"hp": 0, "atk": 252, "def": 0, "spa": 0, "spd": 4, "spe": 252},
+    "nature": "Hasty",
+    "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+    "moves": ["Thunderbolt", "Grass Knot", "Surf", "Volt Switch"]
+  }
+]
+```
+
+#### Pretty Print JSON
+
+```bash
+./pokemon-showdown json-team < team.txt | jq .
+```
+
+## Team Format Reference
+
+Pokemon Showdown uses three team formats:
+
+<CardGroup cols={3}>
+  <Card title="Packed Format" icon="box">
+    Compressed format for storage and transmission. Used by generate-team output and server.
+  </Card>
+  
+  <Card title="JSON Format" icon="code">
+    Structured format for programmatic use. Used internally by the simulator.
+  </Card>
+  
+  <Card title="Export Format" icon="file-text">
+    Human-readable format. Used by the teambuilder import/export.
+  </Card>
+</CardGroup>
+
+### Packed Format Structure
+
+```
+NICKNAME|SPECIES|ITEM|ABILITY|MOVES|NATURE|EVS|GENDER|IVS|SHINY|LEVEL|HAPPINESS,POKEBALL,HIDDENPOWERTYPE,GIGANTAMAX,DYNAMAXLEVEL,TERATYPE
+```
+
+Pokemon are separated by `]`.
+
+### JSON Format Structure
+
+```json
+{
+  "name": "",
+  "species": "Pikachu",
+  "gender": "",
+  "item": "Light Ball",
+  "ability": "Lightning Rod",
+  "evs": {"hp": 0, "atk": 252, "def": 0, "spa": 0, "spd": 4, "spe": 252},
+  "nature": "Hasty",
+  "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+  "moves": ["Thunderbolt", "Grass Knot", "Surf", "Volt Switch"]
+}
+```
+
+### Export Format Structure
+
+```
+Pikachu @ Light Ball
+Ability: Lightning Rod
+EVs: 252 Atk / 4 SpD / 252 Spe
+Hasty Nature
+- Thunderbolt
+- Grass Knot
+- Surf
+- Volt Switch
+```
+
+## Advanced Usage
+
+### Batch Processing
+
+Generate and validate multiple teams:
+
+```bash
+for i in {1..10}; do
+    ./pokemon-showdown generate-team gen9ou | ./pokemon-showdown validate-team gen9ou
+    if [ $? -eq 0 ]; then
+        echo "Team $i: Valid"
+    else
+        echo "Team $i: Invalid"
+    fi
+done
+```
+
+### Format Conversion Pipeline
+
+```bash
+# Export → Packed → JSON → Export
+cat team.txt | ./pokemon-showdown pack-team | ./pokemon-showdown json-team | jq .
+```
+
+### Integration with Scripts
+
+<CodeGroup>
+```python Python
+import subprocess
+
+def generate_team(format_id):
+    result = subprocess.run(
+        ['./pokemon-showdown', 'generate-team', format_id],
+        capture_output=True,
+        text=True
+    )
+    return result.stdout.strip()
+
+def validate_team(team, format_id):
+    result = subprocess.run(
+        ['./pokemon-showdown', 'validate-team', format_id],
+        input=team,
+        capture_output=True,
+        text=True
+    )
+    return result.returncode == 0, result.stderr
+
+# Generate and validate
+team = generate_team('gen9ou')
+is_valid, errors = validate_team(team, 'gen9ou')
+
+if is_valid:
+    print("Team is valid!")
+else:
+    print(f"Errors: {errors}")
+```
+
+```javascript Node.js
+const { execSync } = require('child_process');
+
+function generateTeam(formatId) {
+  return execSync(
+    `./pokemon-showdown generate-team ${formatId}`
+  ).toString().trim();
+}
+
+function validateTeam(team, formatId) {
+  try {
+    execSync(
+      `./pokemon-showdown validate-team ${formatId}`,
+      { input: team }
+    );
+    return { valid: true, errors: null };
+  } catch (error) {
+    return { valid: false, errors: error.stderr.toString() };
+  }
+}
+
+// Generate and validate
+const team = generateTeam('gen9ou');
+const result = validateTeam(team, 'gen9ou');
+
+if (result.valid) {
+  console.log('Team is valid!');
+} else {
+  console.log('Errors:', result.errors);
+}
+```
+</CodeGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Team Formats" icon="book" href="/teams/formats">
+    Detailed documentation on all three team formats
+  </Card>
+  
+  <Card title="Team Validator" icon="shield-check" href="/api/team-validator">
+    Use the team validator in Node.js
+  </Card>
+  
+  <Card title="Battle Simulation" icon="swords" href="/cli/simulate-battle">
+    Use generated teams in battle simulations
+  </Card>
+  
+  <Card title="Format Data" icon="database" href="/formats/overview">
+    Learn about available formats and their rules
+  </Card>
+</CardGroup>

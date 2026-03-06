@@ -1,0 +1,614 @@
+---
+title: 'Items API'
+description: 'Access Pokemon item data including held items, berries, Z-Crystals, Mega Stones, and battle effects'
+---
+
+# Items API
+
+The `DexItems` API provides comprehensive data about Pokemon items including held items, berries, Z-Crystals, Mega Stones, and their battle effects. Access it through `Dex.items`.
+
+## Getting Item Data
+
+```typescript
+import { Dex } from './sim/dex';
+
+// Get an item by name
+const lifeOrb = Dex.items.get('Life Orb');
+console.log(lifeOrb.name); // 'Life Orb'
+console.log(lifeOrb.fling?.basePower); // 30
+
+// Get all items
+const allItems = Dex.items.all();
+console.log(allItems.length); // 1600+ (in Gen 9)
+```
+
+## Methods
+
+### get()
+
+```typescript
+Dex.items.get(name?: string | Item): Item
+```
+
+Retrieves item data by name or returns the item if already an Item object.
+
+<ParamField path="name" type="string | Item">
+  Item name (case-insensitive, spaces optional) or an existing Item object. Automatically appends "berry" for berry names.
+</ParamField>
+
+<ResponseField name="return" type="Item">
+  A readonly Item object with all item properties. Returns an empty item with `exists: false` if not found.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const choiceScarf = Dex.items.get('Choice Scarf');
+console.log(choiceScarf.id); // 'choicescarf'
+console.log(choiceScarf.name); // 'Choice Scarf'
+console.log(choiceScarf.exists); // true
+
+// Berry names auto-complete
+const sitrus = Dex.items.get('Sitrus'); // Automatically finds 'Sitrus Berry'
+console.log(sitrus.name); // 'Sitrus Berry'
+
+const invalid = Dex.items.get('Not An Item');
+console.log(invalid.exists); // false
+```
+
+### getByID()
+
+```typescript
+Dex.items.getByID(id: ID): Item
+```
+
+Retrieves item data by ID (lowercase, no spaces).
+
+<ParamField path="id" type="ID">
+  Item ID in lowercase alphanumeric format.
+</ParamField>
+
+**Example:**
+
+```typescript
+const item = Dex.items.getByID('leftovers' as ID);
+console.log(item.name); // 'Leftovers'
+```
+
+### all()
+
+```typescript
+Dex.items.all(): readonly Item[]
+```
+
+Returns an array of all items in the current generation/mod.
+
+<ResponseField name="return" type="readonly Item[]">
+  Array of all Item objects, including nonstandard items.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const allItems = Dex.items.all();
+const megaStones = allItems.filter(item => item.megaStone);
+console.log(`${megaStones.length} Mega Stones`);
+```
+
+## Item Properties
+
+### Basic Properties
+
+<ParamField path="id" type="ID">
+  Unique identifier (lowercase, no spaces).
+</ParamField>
+
+<ParamField path="name" type="string">
+  Display name of the item.
+</ParamField>
+
+<ParamField path="num" type="number">
+  Item index number (controls sprite location).
+</ParamField>
+
+<ParamField path="desc" type="string">
+  Full description of the item's effects.
+</ParamField>
+
+<ParamField path="shortDesc" type="string">
+  Short description.
+</ParamField>
+
+<ParamField path="gen" type="number">
+  Generation when this item was introduced.
+</ParamField>
+
+<ParamField path="exists" type="boolean">
+  Whether this item exists in the data.
+</ParamField>
+
+<ParamField path="isNonstandard" type="string | null">
+  Indicates if item is nonstandard: `'Past'`, `'Future'`, `'LGPE'`, etc. `null` for standard items.
+</ParamField>
+
+**Example:**
+
+```typescript
+const assaultVest = Dex.items.get('Assault Vest');
+console.log(assaultVest.name); // 'Assault Vest'
+console.log(assaultVest.num); // 640
+console.log(assaultVest.gen); // 6
+console.log(assaultVest.shortDesc); // 'SpD is 1.5x, but only damaging moves can be selected.'
+```
+
+### Item Categories
+
+<ParamField path="isBerry" type="boolean">
+  True if this is a berry.
+</ParamField>
+
+<ParamField path="isGem" type="boolean">
+  True if this is a type-boosting Gem.
+</ParamField>
+
+<ParamField path="isPokeball" type="boolean">
+  True if this is a Pokeball.
+</ParamField>
+
+<ParamField path="isChoice" type="boolean">
+  True if this is a Choice item (Scarf, Band, Specs).
+</ParamField>
+
+**Example:**
+
+```typescript
+const lumBerry = Dex.items.get('Lum Berry');
+console.log(lumBerry.isBerry); // true
+
+const normalGem = Dex.items.get('Normal Gem');
+console.log(normalGem.isGem); // true
+
+const choiceBand = Dex.items.get('Choice Band');
+console.log(choiceBand.isChoice); // true
+
+const pokeball = Dex.items.get('Poke Ball');
+console.log(pokeball.isPokeball); // true
+```
+
+### Fling Data
+
+<ParamField path="fling" type="FlingData">
+  Data for the move Fling when used with this item.
+</ParamField>
+
+```typescript
+interface FlingData {
+  basePower: number;          // Base power when flung
+  status?: string;            // Status condition inflicted
+  volatileStatus?: string;    // Volatile status inflicted
+}
+```
+
+**Example:**
+
+```typescript
+const lifeOrb = Dex.items.get('Life Orb');
+console.log(lifeOrb.fling?.basePower); // 30
+
+const flameOrb = Dex.items.get('Flame Orb');
+console.log(flameOrb.fling?.basePower); // 30
+console.log(flameOrb.fling?.status); // 'brn'
+
+const ironBall = Dex.items.get('Iron Ball');
+console.log(ironBall.fling?.basePower); // 130
+
+// Berries have automatic Fling power
+const sitrusBerry = Dex.items.get('Sitrus Berry');
+console.log(sitrusBerry.fling?.basePower); // 10 (all berries)
+```
+
+### Mega Stones
+
+<ParamField path="megaStone" type="object">
+  For Mega Stones: maps base species to Mega Evolution forme.
+</ParamField>
+
+<ParamField path="megaEvolves" type="string">
+  The base species that can use this Mega Stone.
+</ParamField>
+
+**Example:**
+
+```typescript
+const charizarditeX = Dex.items.get('Charizardite X');
+console.log(charizarditeX.megaStone); // { Charizard: 'Charizard-Mega-X' }
+console.log(charizarditeX.megaEvolves); // 'Charizard'
+
+const gengarite = Dex.items.get('Gengarite');
+console.log(gengarite.megaStone); // { Gengar: 'Gengar-Mega' }
+
+// Check if item is a Mega Stone
+const isMegaStone = (item: Item) => !!item.megaStone;
+console.log(isMegaStone(charizarditeX)); // true
+```
+
+### Z-Crystals
+
+<ParamField path="zMove" type="true | string">
+  For Z-Crystals: `true` for generic type crystals, or move name for species-specific crystals.
+</ParamField>
+
+<ParamField path="zMoveType" type="string">
+  For generic Z-Crystals: the type of Z-Move this enables.
+</ParamField>
+
+<ParamField path="zMoveFrom" type="string">
+  For species-specific Z-Crystals: the base move name required.
+</ParamField>
+
+<ParamField path="itemUser" type="string[]">
+  For species-specific Z-Crystals: array of species that can use it.
+</ParamField>
+
+**Example:**
+
+```typescript
+// Generic Z-Crystal
+const firiumZ = Dex.items.get('Firium Z');
+console.log(firiumZ.zMove); // true
+console.log(firiumZ.zMoveType); // 'Fire'
+
+// Species-specific Z-Crystal
+const pikaniumZ = Dex.items.get('Pikanium Z');
+console.log(pikaniumZ.zMove); // 'Catastropika'
+console.log(pikaniumZ.zMoveFrom); // 'Volt Tackle'
+console.log(pikaniumZ.itemUser); // ['Pikachu', 'Pikachu-Rock-Star', ...]
+
+// Check if item is a Z-Crystal
+const isZCrystal = (item: Item) => !!item.zMove;
+console.log(isZCrystal(firiumZ)); // true
+```
+
+### Type-Changing Items
+
+<ParamField path="onPlate" type="string">
+  For Plates: the type Arceus becomes when holding this.
+</ParamField>
+
+<ParamField path="onMemory" type="string">
+  For Memories: the type Silvally/Multi-Attack becomes.
+</ParamField>
+
+<ParamField path="onDrive" type="string">
+  For Drives: the type Genesect/Techno Blast becomes.
+</ParamField>
+
+**Example:**
+
+```typescript
+const flamePlate = Dex.items.get('Flame Plate');
+console.log(flamePlate.onPlate); // 'Fire'
+
+const fireMemory = Dex.items.get('Fire Memory');
+console.log(fireMemory.onMemory); // 'Fire'
+
+const shockDrive = Dex.items.get('Shock Drive');
+console.log(shockDrive.onDrive); // 'Electric'
+```
+
+### Primal Orbs
+
+<ParamField path="isPrimalOrb" type="boolean">
+  True for Red Orb and Blue Orb (enables Primal Reversion).
+</ParamField>
+
+**Example:**
+
+```typescript
+const redOrb = Dex.items.get('Red Orb');
+console.log(redOrb.isPrimalOrb); // true
+
+const blueOrb = Dex.items.get('Blue Orb');
+console.log(blueOrb.isPrimalOrb); // true
+```
+
+### Special Properties
+
+<ParamField path="ignoreKlutz" type="boolean">
+  If true, this item works even when the holder has Klutz ability.
+</ParamField>
+
+<ParamField path="naturalGift" type="object">
+  For berries: Natural Gift's type and base power when consuming this berry.
+</ParamField>
+
+**Example:**
+
+```typescript
+const mentalHerb = Dex.items.get('Mental Herb');
+console.log(mentalHerb.ignoreKlutz); // true
+
+const lumBerry = Dex.items.get('Lum Berry');
+console.log(lumBerry.naturalGift);
+// { basePower: 80, type: 'Flying' }
+```
+
+## Item Categories
+
+### Held Items by Type
+
+```typescript
+// Stat-boosting items
+const choiceBand = Dex.items.get('Choice Band');
+console.log(choiceBand.shortDesc); // 'Atk is 1.5x, but only one move can be selected.'
+
+const assaultVest = Dex.items.get('Assault Vest');
+console.log(assaultVest.shortDesc); // 'SpD is 1.5x, but only damaging moves can be selected.'
+
+// Recovery items
+const leftovers = Dex.items.get('Leftovers');
+console.log(leftovers.shortDesc); // 'Restores 1/16 max HP at the end of every turn.'
+
+const blackSludge = Dex.items.get('Black Sludge');
+console.log(blackSludge.shortDesc); // 'Restores 1/16 max HP for Poison types; damages others.'
+```
+
+### Berries
+
+```typescript
+// Status-healing berries
+const lumBerry = Dex.items.get('Lum Berry');
+console.log(lumBerry.isBerry); // true
+console.log(lumBerry.shortDesc); // 'Cures any status condition.'
+
+// Pinch berries
+const sitrusBerry = Dex.items.get('Sitrus Berry');
+console.log(sitrusBerry.shortDesc); // 'Restores 1/4 max HP when at 1/2 max HP or less.'
+
+// Type-resist berries
+const occaBerry = Dex.items.get('Occa Berry');
+console.log(occaBerry.shortDesc); // 'Halves Fire damage taken. Single use.'
+```
+
+### Competitive Items
+
+```typescript
+// Focus Sash
+const focusSash = Dex.items.get('Focus Sash');
+console.log(focusSash.shortDesc); // 'Holder survives any attack with at least 1 HP if at full HP. Single use.'
+
+// Rocky Helmet
+const rockyHelmet = Dex.items.get('Rocky Helmet');
+console.log(rockyHelmet.shortDesc); // 'If holder is hit by contact move, attacker loses 1/6 max HP.'
+
+// Life Orb
+const lifeOrb = Dex.items.get('Life Orb');
+console.log(lifeOrb.shortDesc); // 'Holder\'s attacks do 1.3x damage, and it loses 1/10 its max HP after the attack.'
+```
+
+## Filtering Items
+
+```typescript
+// Get all berries
+const berries = Dex.items.all().filter(item => item.isBerry);
+
+// Get all Mega Stones
+const megaStones = Dex.items.all().filter(item => item.megaStone);
+
+// Get all generic Z-Crystals
+const genericZCrystals = Dex.items.all().filter(item => 
+  item.zMove === true
+);
+
+// Get all species-specific Z-Crystals
+const signatureZCrystals = Dex.items.all().filter(item => 
+  typeof item.zMove === 'string'
+);
+
+// Get all Plates (for Arceus)
+const plates = Dex.items.all().filter(item => item.onPlate);
+
+// Get all Choice items
+const choiceItems = Dex.items.all().filter(item => item.isChoice);
+
+// Get all type-resist berries
+const resistBerries = Dex.items.all().filter(item => {
+  const desc = item.shortDesc?.toLowerCase() || '';
+  return item.isBerry && desc.includes('halves') && desc.includes('damage');
+});
+```
+
+## Generation Differences
+
+```typescript
+// Items were introduced in Gen 2
+const gen1Dex = Dex.mod('gen1');
+const gen1Items = gen1Dex.items.all();
+console.log(gen1Items.length); // Very few or none
+
+// Gen 3 introduced held items more extensively
+const gen3Dex = Dex.mod('gen3');
+const gen3Leftovers = gen3Dex.items.get('Leftovers');
+console.log(gen3Leftovers.gen); // 2
+
+// Mega Stones in Gen 6
+const gen6Dex = Dex.mod('gen6');
+const gen6MegaStones = gen6Dex.items.all().filter(i => i.megaStone);
+console.log(`Gen 6 has ${gen6MegaStones.length} Mega Stones`);
+
+// Z-Crystals in Gen 7
+const gen7Dex = Dex.mod('gen7');
+const gen7ZCrystals = gen7Dex.items.all().filter(i => i.zMove);
+console.log(`Gen 7 has ${gen7ZCrystals.length} Z-Crystals`);
+
+// Some items become nonstandard in later gens
+const gen8ZCrystal = Dex.mod('gen8').items.get('Firium Z');
+console.log(gen8ZCrystal.isNonstandard); // 'Past'
+```
+
+## Finding Item Users
+
+```typescript
+// Find which Pokemon can Mega Evolve with a stone
+function getMegaEvolutionUser(itemName: string): string | null {
+  const item = Dex.items.get(itemName);
+  if (!item.megaStone) return null;
+  
+  const baseSpecies = Object.keys(item.megaStone)[0];
+  return baseSpecies;
+}
+
+console.log(getMegaEvolutionUser('Charizardite X')); // 'Charizard'
+console.log(getMegaEvolutionUser('Gengarite')); // 'Gengar'
+
+// Find which Pokemon can use a species-specific Z-Crystal
+function getZCrystalUsers(itemName: string): string[] {
+  const item = Dex.items.get(itemName);
+  return item.itemUser || [];
+}
+
+console.log(getZCrystalUsers('Pikanium Z'));
+// ['Pikachu', 'Pikachu-Rock-Star', 'Pikachu-Belle', ...]
+
+// Find which type a Plate/Memory/Drive provides
+function getTypeChangingItemType(itemName: string): string | null {
+  const item = Dex.items.get(itemName);
+  return item.onPlate || item.onMemory || item.onDrive || null;
+}
+
+console.log(getTypeChangingItemType('Flame Plate')); // 'Fire'
+console.log(getTypeChangingItemType('Fire Memory')); // 'Fire'
+console.log(getTypeChangingItemType('Shock Drive')); // 'Electric'
+```
+
+## Complete Example
+
+```typescript
+import { Dex } from './sim/dex';
+
+function analyzeItem(itemName: string) {
+  const item = Dex.items.get(itemName);
+  
+  if (!item.exists) {
+    console.log(`Item "${itemName}" not found`);
+    return;
+  }
+  
+  console.log(`=== ${item.name} ===`);
+  console.log(`ID: ${item.id}`);
+  console.log(`Gen: ${item.gen}`);
+  console.log(`\nDescription: ${item.desc || item.shortDesc}`);
+  
+  // Category
+  const categories: string[] = [];
+  if (item.isBerry) categories.push('Berry');
+  if (item.isGem) categories.push('Gem');
+  if (item.megaStone) categories.push('Mega Stone');
+  if (item.zMove) categories.push('Z-Crystal');
+  if (item.isPokeball) categories.push('Pokeball');
+  if (item.isChoice) categories.push('Choice Item');
+  if (categories.length) {
+    console.log(`\nCategories: ${categories.join(', ')}`);
+  }
+  
+  // Special properties
+  if (item.fling) {
+    console.log(`\nFling BP: ${item.fling.basePower}`);
+    if (item.fling.status) console.log(`Fling Status: ${item.fling.status}`);
+  }
+  
+  if (item.megaStone) {
+    const base = Object.keys(item.megaStone)[0];
+    const mega = item.megaStone[base];
+    console.log(`\nMega Evolution: ${base} → ${mega}`);
+  }
+  
+  if (item.zMove) {
+    if (item.zMove === true) {
+      console.log(`\nZ-Move Type: ${item.zMoveType}`);
+    } else {
+      console.log(`\nZ-Move: ${item.zMove}`);
+      console.log(`Requires: ${item.zMoveFrom}`);
+      console.log(`Users: ${item.itemUser?.join(', ')}`);
+    }
+  }
+  
+  if (item.onPlate) console.log(`\nArceus Type: ${item.onPlate}`);
+  if (item.onMemory) console.log(`\nSilvally Type: ${item.onMemory}`);
+  if (item.onDrive) console.log(`\nGenesect Type: ${item.onDrive}`);
+  
+  if (item.naturalGift) {
+    console.log(`\nNatural Gift: ${item.naturalGift.type} (BP ${item.naturalGift.basePower})`);
+  }
+  
+  if (item.ignoreKlutz) {
+    console.log('\n- Works through Klutz');
+  }
+}
+
+analyzeItem('Life Orb');
+analyzeItem('Charizardite X');
+analyzeItem('Firium Z');
+analyzeItem('Lum Berry');
+```
+
+## Type Definitions
+
+```typescript
+interface Item {
+  readonly id: ID;
+  readonly name: string;
+  readonly num: number;
+  readonly desc: string;
+  readonly shortDesc: string;
+  readonly gen: number;
+  readonly exists: boolean;
+  readonly isNonstandard: string | null;
+  readonly effectType: 'Item';
+  
+  readonly isBerry: boolean;
+  readonly isGem: boolean;
+  readonly isPokeball: boolean;
+  readonly isPrimalOrb: boolean;
+  readonly ignoreKlutz: boolean;
+  readonly isChoice?: boolean;
+  
+  readonly fling?: FlingData;
+  readonly megaStone?: { [species: string]: string };
+  readonly megaEvolves?: string;
+  readonly zMove?: true | string;
+  readonly zMoveType?: string;
+  readonly zMoveFrom?: string;
+  readonly itemUser?: string[];
+  readonly onPlate?: string;
+  readonly onMemory?: string;
+  readonly onDrive?: string;
+  readonly naturalGift?: { basePower: number; type: string };
+}
+
+interface FlingData {
+  basePower: number;
+  status?: string;
+  volatileStatus?: string;
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Dex API" icon="book" href="/api/dex">
+    Main Dex interface and utility methods
+  </Card>
+  
+  <Card title="Species API" icon="dragon" href="/api/species">
+    Pokemon that can hold and use items
+  </Card>
+  
+  <Card title="Moves API" icon="wind" href="/api/moves">
+    Move interactions with items (Fling, Knock Off)
+  </Card>
+  
+  <Card title="Abilities API" icon="sparkles" href="/api/abilities">
+    Ability interactions with items
+  </Card>
+</CardGroup>

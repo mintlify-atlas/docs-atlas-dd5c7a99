@@ -1,0 +1,766 @@
+---
+title: Team Validator
+description: Validate teams for format legality and rule compliance
+---
+
+The `TeamValidator` class handles team validation and learnset checking for Pokemon Showdown. It ensures teams comply with format rules, move legality, stat constraints, and event restrictions.
+
+## Constructor
+
+Creates a new TeamValidator instance for a specific format.
+
+```typescript
+new TeamValidator(format: string | Format, dex?: ModdedDex)
+```
+
+<ParamField path="format" type="string | Format">
+  Format name (e.g., "gen9ou", "gen8vgc2022") or Format object
+</ParamField>
+
+<ParamField path="dex" type="ModdedDex" optional>
+  ModdedDex instance. Defaults to the standard Dex.
+</ParamField>
+
+```typescript
+import { TeamValidator, Teams } from './sim';
+
+const validator = new TeamValidator('gen9ou');
+const team = Teams.unpack('Garchomp||choiceband|roughskin|outrage,earthquake,stoneedge,firefang|Jolly|,252,,,4,252|||||');
+
+const problems = validator.validateTeam(team);
+if (problems) {
+  console.log('Invalid team:', problems);
+} else {
+  console.log('Team is valid!');
+}
+```
+
+## Properties
+
+<ResponseField name="format" type="Format">
+  The Format object for this validator
+</ResponseField>
+
+<ResponseField name="dex" type="ModdedDex">
+  The ModdedDex instance used for validation (adjusted for the format)
+</ResponseField>
+
+<ResponseField name="gen" type="number">
+  The generation number for this format
+</ResponseField>
+
+<ResponseField name="ruleTable" type="RuleTable">
+  The parsed rule table for this format
+</ResponseField>
+
+<ResponseField name="minSourceGen" type="number">
+  Minimum generation a Pokemon must be from (e.g., 6 if Pentagon required)
+</ResponseField>
+
+## Methods
+
+### validateTeam()
+
+Validates an entire team for format legality.
+
+```typescript
+validateTeam(
+  team: PokemonSet[] | null,
+  options?: {
+    removeNicknames?: boolean,
+    skipSets?: { [name: string]: { [key: string]: boolean } }
+  }
+): string[] | null
+```
+
+<ParamField path="team" type="PokemonSet[] | null">
+  Team to validate (null for formats with auto-generated teams)
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Validation options
+  
+  <ParamField path="removeNicknames" type="boolean" optional>
+    Remove nicknames and use species names instead
+  </ParamField>
+  
+  <ParamField path="skipSets" type="{ [name: string]: { [key: string]: boolean } }" optional>
+    Skip validation for specific sets
+  </ParamField>
+</ParamField>
+
+<ResponseField name="return" type="string[] | null">
+  Array of problem strings if invalid, or null if valid
+</ResponseField>
+
+<CodeGroup>
+```typescript Valid Team
+import { TeamValidator, Teams } from './sim';
+
+const validator = new TeamValidator('gen9ou');
+const team = Teams.import(`
+Garchomp @ Choice Band  
+Ability: Rough Skin  
+EVs: 252 Atk / 4 SpD / 252 Spe  
+Jolly Nature  
+- Outrage  
+- Earthquake  
+- Stone Edge  
+- Fire Fang  
+`);
+
+const problems = validator.validateTeam(team);
+if (problems) {
+  problems.forEach(problem => console.log(problem));
+} else {
+  console.log('Valid team!');
+}
+```
+
+```typescript Invalid Team Example
+const validator = new TeamValidator('gen9ou');
+const team = Teams.import(`
+Mewtwo @ Life Orb  
+Ability: Pressure  
+EVs: 252 SpA / 4 SpD / 252 Spe  
+Timid Nature  
+- Psystrike  
+- Ice Beam  
+- Thunderbolt  
+- Fire Blast  
+`);
+
+const problems = validator.validateTeam(team);
+// Returns: ["Mewtwo is in Ubers, which is banned."]
+```
+
+```typescript Random Battle Format
+// For formats with auto-generated teams
+const validator = new TeamValidator('gen9randombattle');
+const problems = validator.validateTeam(null);
+// Returns null if team generator works correctly
+```
+</CodeGroup>
+
+<Note>
+  Team validation checks team size limits, species clauses, tier restrictions, and calls `validateSet()` for each Pokemon.
+</Note>
+
+### validateSet()
+
+Validates a single Pokemon set.
+
+```typescript
+validateSet(
+  set: PokemonSet,
+  teamHas: AnyObject
+): string[] | null
+```
+
+<ParamField path="set" type="PokemonSet">
+  Pokemon set to validate
+</ParamField>
+
+<ParamField path="teamHas" type="AnyObject">
+  Object tracking what the team has (for clause checking). Modified in place.
+</ParamField>
+
+<ResponseField name="return" type="string[] | null">
+  Array of problem strings if invalid, or null if valid
+</ResponseField>
+
+<CodeGroup>
+```typescript Valid Set
+import { TeamValidator } from './sim';
+
+const validator = new TeamValidator('gen9ou');
+const set = {
+  name: 'Garchomp',
+  species: 'Garchomp',
+  item: 'Choice Band',
+  ability: 'Rough Skin',
+  moves: ['Outrage', 'Earthquake', 'Stone Edge', 'Fire Fang'],
+  nature: 'Jolly',
+  evs: { hp: 0, atk: 252, def: 0, spa: 0, spd: 4, spe: 252 },
+  ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
+  level: 100,
+  gender: ''
+};
+
+const teamHas = {};
+const problems = validator.validateSet(set, teamHas);
+
+if (problems) {
+  console.log('Invalid set:', problems);
+} else {
+  console.log('Valid set!');
+  console.log('Team has:', teamHas); // Tracks species, abilities, items, etc.
+}
+```
+
+```typescript Invalid Move
+const set = {
+  name: 'Garchomp',
+  species: 'Garchomp',
+  item: 'Choice Band',
+  ability: 'Rough Skin',
+  moves: ['Outrage', 'Earthquake', 'Dragon Dance', 'Swords Dance'],
+  nature: 'Jolly',
+  evs: { hp: 0, atk: 252, def: 0, spa: 0, spd: 4, spe: 252 },
+  ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
+  level: 100,
+  gender: ''
+};
+
+const problems = validator.validateSet(set, {});
+// Returns problems about illegal move combination
+```
+</CodeGroup>
+
+### baseValidateTeam()
+
+Base team validation logic without custom format overrides.
+
+```typescript
+baseValidateTeam(
+  team: PokemonSet[] | null,
+  options?: {
+    removeNicknames?: boolean,
+    skipSets?: { [name: string]: { [key: string]: boolean } }
+  }
+): string[] | null
+```
+
+Same parameters and return type as `validateTeam()`, but skips format-specific `validateTeam` overrides.
+
+```typescript
+import { TeamValidator } from './sim';
+
+const validator = new TeamValidator('gen9ou');
+const team = [/* ... */];
+
+// Uses base validation only
+const problems = validator.baseValidateTeam(team);
+```
+
+### validateStats()
+
+Validates EVs, IVs, Hidden Power, and stat-related legality.
+
+```typescript
+validateStats(
+  set: PokemonSet,
+  species: Species,
+  setSources: PokemonSources,
+  pokemonGoProblems: string[] | null
+): string[]
+```
+
+<ParamField path="set" type="PokemonSet">
+  Pokemon set to validate
+</ParamField>
+
+<ParamField path="species" type="Species">
+  Species data
+</ParamField>
+
+<ParamField path="setSources" type="PokemonSources">
+  Possible sources for this Pokemon
+</ParamField>
+
+<ParamField path="pokemonGoProblems" type="string[] | null">
+  Pokemon GO validation problems
+</ParamField>
+
+<ResponseField name="return" type="string[]">
+  Array of stat-related problems
+</ResponseField>
+
+<CodeGroup>
+```typescript EVs Over Limit
+const set = {
+  species: 'Garchomp',
+  evs: { hp: 252, atk: 252, def: 252, spa: 0, spd: 0, spe: 0 }, // 756 total
+  ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
+  // ... other properties
+};
+
+const problems = validator.validateStats(set, species, setSources, null);
+// Returns: ["Garchomp has 756 total EVs, which is more than this format's limit of 510."]
+```
+
+```typescript Hidden Power Mismatch
+const set = {
+  species: 'Heliolisk',
+  moves: ['Hidden Power Ice'],
+  ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }, // IVs for HP Dark
+  hpType: 'Ice',
+  // ... other properties
+};
+
+const problems = validator.validateStats(set, species, setSources, null);
+// Returns problem about HP type mismatch
+```
+
+```typescript Gen 2 DVs
+// Gen 2 has different IV/DV rules
+const validator = new TeamValidator('gen2ou');
+const set = {
+  species: 'Snorlax',
+  ivs: { hp: 30, atk: 30, def: 30, spa: 30, spd: 30, spe: 30 },
+  // ... other properties
+};
+
+const problems = validator.validateStats(set, species, setSources, null);
+// Validates DVs (IVs/2) and checks gender/shiny consistency
+```
+</CodeGroup>
+
+<Note>
+  `validateStats()` enforces:
+  - EV limits (default 510 total, 252 per stat)
+  - IV ranges (0-31, or 0-30 for Gen 1-2 DVs)
+  - Hidden Power type matching IVs
+  - Legendary 3-perfect-IV requirement (Gen 6+)
+  - Gen 1-2 DV consistency (HP, gender, shininess)
+  - Bottle Cap hyper training legality
+</Note>
+
+### getValidationSpecies()
+
+Determines the out-of-battle and tier species for validation.
+
+```typescript
+getValidationSpecies(set: PokemonSet): {
+  outOfBattleSpecies: Species,
+  tierSpecies: Species
+}
+```
+
+<ParamField path="set" type="PokemonSet">
+  Pokemon set to analyze
+</ParamField>
+
+<ResponseField name="return" type="{ outOfBattleSpecies: Species, tierSpecies: Species }">
+  Object containing both species forms
+  
+  <ResponseField name="outOfBattleSpecies" type="Species">
+    Species used for learnset/event checking
+  </ResponseField>
+  
+  <ResponseField name="tierSpecies" type="Species">
+    Species used for tier/banlists (includes Mega/Primal forms)
+  </ResponseField>
+</ResponseField>
+
+<CodeGroup>
+```typescript Mega Evolution
+const set = {
+  species: 'Garchomp',
+  item: 'Garchompite',
+  // ...
+};
+
+const { outOfBattleSpecies, tierSpecies } = validator.getValidationSpecies(set);
+console.log(outOfBattleSpecies.name); // "Garchomp"
+console.log(tierSpecies.name);        // "Garchomp-Mega" (if obtainableformes rule)
+```
+
+```typescript Greninja-Ash
+const set = {
+  species: 'Greninja',
+  ability: 'Battle Bond',
+  // ...
+};
+
+const { outOfBattleSpecies, tierSpecies } = validator.getValidationSpecies(set);
+console.log(outOfBattleSpecies.name); // "Greninja-Bond"
+console.log(tierSpecies.name);        // "Greninja-Bond" (if obtainableformes rule)
+```
+
+```typescript Primal Reversion
+const set = {
+  species: 'Groudon',
+  item: 'Red Orb',
+  // ...
+};
+
+const { outOfBattleSpecies, tierSpecies } = validator.getValidationSpecies(set);
+console.log(outOfBattleSpecies.name); // "Groudon"
+console.log(tierSpecies.name);        // "Groudon-Primal" (if obtainableformes rule)
+```
+</CodeGroup>
+
+### getEventOnlyData()
+
+Retrieves event data for event-only Pokemon.
+
+```typescript
+getEventOnlyData(
+  species: Species,
+  noRecurse?: boolean
+): { species: Species, eventData: EventInfo[] } | null
+```
+
+<ParamField path="species" type="Species">
+  Species to check
+</ParamField>
+
+<ParamField path="noRecurse" type="boolean" optional>
+  Don't check prevo for event data
+</ParamField>
+
+<ResponseField name="return" type="{ species: Species, eventData: EventInfo[] } | null">
+  Event data object, or null if not event-only
+</ResponseField>
+
+```typescript
+const dex = validator.dex;
+const mew = dex.species.get('Mew');
+const eventData = validator.getEventOnlyData(mew);
+
+if (eventData) {
+  console.log(`${eventData.species.name} has ${eventData.eventData.length} events`);
+  eventData.eventData.forEach((event, i) => {
+    console.log(`Event ${i}: Gen ${event.generation}, Level ${event.level}`);
+  });
+}
+```
+
+## PokemonSources Class
+
+The `PokemonSources` class represents possible sources for obtaining a Pokemon with a specific set.
+
+```typescript
+class PokemonSources {
+  sources: PokemonSource[];      // Specific sources (e.g., "7S0", "8E")
+  sourcesBefore: number;         // Any source from this gen or earlier
+  sourcesAfter: number;          // Requires this gen or later
+  isHidden: boolean | null;      // Has Hidden Ability
+  limitedEggMoves?: ID[] | null; // Egg moves requiring specific fathers
+  moveEvoCarryCount: number;     // Moves requiring evolution
+  dreamWorldMoveCount: number;   // Dream World moves
+  // ... additional properties
+}
+```
+
+### Constructor
+
+```typescript
+new PokemonSources(sourcesBefore?: number, sourcesAfter?: number)
+```
+
+<ParamField path="sourcesBefore" type="number" default={0}>
+  Allow all sources from this generation or earlier
+</ParamField>
+
+<ParamField path="sourcesAfter" type="number" default={0}>
+  Require sources from this generation or later
+</ParamField>
+
+```typescript
+// Allow any Gen 8 or earlier source
+const sources = new PokemonSources(8, 0);
+
+// Require Gen 6+ sources (Pentagon)
+const gen6plus = new PokemonSources(0, 6);
+```
+
+### Methods
+
+#### add()
+
+Adds a specific source to the set.
+
+```typescript
+add(source: PokemonSource, limitedEggMove?: ID | null): void
+```
+
+```typescript
+const sources = new PokemonSources();
+sources.add('8S0');      // Event source
+sources.add('7E');       // Egg source
+sources.add('6L5');      // Level-up move in Gen 6
+```
+
+#### addGen()
+
+Adds all sources from a generation or earlier.
+
+```typescript
+addGen(sourceGen: number): void
+```
+
+```typescript
+const sources = new PokemonSources();
+sources.addGen(7); // Allow all Gen 7 and earlier sources
+```
+
+#### minSourceGen() / maxSourceGen()
+
+Gets the minimum or maximum generation in the source set.
+
+```typescript
+minSourceGen(): number
+maxSourceGen(): number
+```
+
+```typescript
+const sources = new PokemonSources();
+sources.add('6L1');
+sources.add('8M2');
+
+console.log(sources.minSourceGen()); // 6
+console.log(sources.maxSourceGen()); // 8
+```
+
+#### intersectWith()
+
+Intersects this source set with another (for combining move restrictions).
+
+```typescript
+intersectWith(other: PokemonSources): void
+```
+
+```typescript
+const sources1 = new PokemonSources();
+sources1.add('7E');
+sources1.add('8V');
+
+const sources2 = new PokemonSources();
+sources2.add('8V');
+sources2.add('8L1');
+
+// Keep only common sources
+sources1.intersectWith(sources2);
+// sources1.sources now contains only '8V'
+```
+
+## Source Strings
+
+Pokemon sources are encoded as strings:
+
+<CodeGroup>
+```typescript Format
+// Format: [GEN][TYPE][INDEX] [SPECIES]
+// Examples:
+"8M2"      // TM/TR move in Gen 8
+"7L1"      // Level-up move at level 1 in Gen 7
+"6E"       // Egg move in Gen 6
+"7S0"      // Event #0 in Gen 7
+"5D"       // Dream World in Gen 5
+"8V"       // Virtual Console/Let's Go transfer
+"1ET"      // Tradeback egg in Gen 1
+```
+
+```typescript Source Types
+// Second character indicates source type:
+"L" // Level-up move
+"M" // Machine (TM/HM/TR)
+"E" // Egg move
+"S" // Event
+"D" // Dream World (Gen 5)
+"V" // Virtual Console/Let's Go transfer
+"T" // Tutor move
+```
+</CodeGroup>
+
+## Validation Examples
+
+### Basic Team Validation
+
+```typescript
+import { TeamValidator, Teams } from './sim';
+
+const validator = new TeamValidator('gen9ou');
+
+const teamString = `
+Garchomp @ Choice Band  
+Ability: Rough Skin  
+EVs: 252 Atk / 4 SpD / 252 Spe  
+Jolly Nature  
+- Outrage  
+- Earthquake  
+- Stone Edge  
+- Fire Fang  
+
+Great Tusk @ Leftovers  
+Ability: Protosynthesis  
+EVs: 252 HP / 4 Atk / 252 Spe  
+Jolly Nature  
+- Earthquake  
+- Rapid Spin  
+- Ice Spinner  
+- Knock Off  
+`;
+
+const team = Teams.import(teamString);
+const problems = validator.validateTeam(team);
+
+if (problems) {
+  console.log('Team validation failed:');
+  problems.forEach(problem => console.log(`  - ${problem}`));
+} else {
+  console.log('Team is legal!');
+}
+```
+
+### Validating Event Pokemon
+
+```typescript
+import { TeamValidator, Teams } from './sim';
+
+const validator = new TeamValidator('gen8ou');
+
+// Victini with V-create (event-exclusive move)
+const team = Teams.import(`
+Victini @ Choice Band  
+Ability: Victory Star  
+EVs: 252 Atk / 4 SpD / 252 Spe  
+Jolly Nature  
+- V-create  
+- Bolt Strike  
+- U-turn  
+- Trick  
+`);
+
+const problems = validator.validateTeam(team);
+if (problems) {
+  console.log('Event validation:', problems);
+  // Will check if Victini's event allows this move combination
+}
+```
+
+### Checking Move Legality
+
+```typescript
+import { TeamValidator, Teams } from './sim';
+
+const validator = new TeamValidator('gen9ou');
+
+// Illegal: Garchomp can't learn both Dragon Dance and Outrage
+const illegalTeam = Teams.import(`
+Garchomp @ Choice Band  
+Ability: Rough Skin  
+EVs: 252 Atk / 4 SpD / 252 Spe  
+Jolly Nature  
+- Outrage  
+- Dragon Dance  
+- Earthquake  
+- Stone Edge  
+`);
+
+const problems = validator.validateTeam(illegalTeam);
+if (problems) {
+  console.log('Move legality issues:');
+  problems.forEach(problem => console.log(`  ${problem}`));
+}
+```
+
+### VGC Format Validation
+
+```typescript
+import { TeamValidator, Teams } from './sim';
+
+// VGC 2023 Series 1
+const validator = new TeamValidator('gen9vgc2023series1');
+
+const vgcTeam = Teams.import(`
+Flutter Mane @ Choice Specs  
+Ability: Protosynthesis  
+Level: 50  
+EVs: 4 HP / 252 SpA / 252 Spe  
+Timid Nature  
+IVs: 0 Atk  
+- Shadow Ball  
+- Moonblast  
+- Icy Wind  
+- Thunderbolt  
+
+Iron Hands @ Assault Vest  
+Ability: Quark Drive  
+Level: 50  
+EVs: 252 HP / 252 Atk / 4 SpD  
+Adamant Nature  
+- Fake Out  
+- Close Combat  
+- Thunder Punch  
+- Heavy Slam  
+`);
+
+const problems = validator.validateTeam(vgcTeam);
+if (!problems) {
+  console.log('VGC team is legal!');
+}
+```
+
+## Static Methods
+
+### fillStats()
+
+Fills missing stats with default values.
+
+```typescript
+static TeamValidator.fillStats(
+  stats: Partial<StatsTable> | null,
+  fillValue: number
+): StatsTable
+```
+
+<ParamField path="stats" type="Partial<StatsTable> | null">
+  Partial stats object to fill
+</ParamField>
+
+<ParamField path="fillValue" type="number">
+  Value to use for missing stats
+</ParamField>
+
+<ResponseField name="return" type="StatsTable">
+  Complete stats object with all six stats
+</ResponseField>
+
+```typescript
+import { TeamValidator } from './sim';
+
+// Fill EVs with 0
+const evs = TeamValidator.fillStats({ atk: 252, spe: 252 }, 0);
+// Result: { hp: 0, atk: 252, def: 0, spa: 0, spd: 0, spe: 252 }
+
+// Fill IVs with 31
+const ivs = TeamValidator.fillStats(null, 31);
+// Result: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }
+```
+
+## Error Handling
+
+```typescript
+import { TeamValidator, Teams } from './sim';
+
+try {
+  const validator = new TeamValidator('invalidformat');
+} catch (error) {
+  console.error('Invalid format:', error.message);
+  // Error: format 'invalidformat' should be a 'Format', but was a 'undefined'
+}
+
+const validator = new TeamValidator('gen9ou');
+const team = Teams.unpack('InvalidData');
+
+if (!team) {
+  console.error('Failed to parse team');
+} else {
+  const problems = validator.validateTeam(team);
+  if (problems) {
+    console.log('Validation errors:');
+    problems.forEach((problem, i) => {
+      console.log(`${i + 1}. ${problem}`);
+    });
+  }
+}
+```
+
+## See Also
+
+- [Teams](/api/teams) - Team format conversion and generation
+- [Dex](/api/dex) - Pokemon data access
+- [Formats](/api/formats) - Format definitions and rules

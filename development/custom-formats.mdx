@@ -1,0 +1,383 @@
+---
+title: Creating Custom Formats
+description: Learn how to create custom battle formats in Pokemon Showdown
+icon: trophy
+---
+
+Pokemon Showdown supports custom battle formats through rules and format definitions. You can create formats on your side server or use custom rules in challenges and tournaments.
+
+## Format Definition Structure
+
+Formats are defined in `config/formats.ts` (or `config/custom-formats.ts`):
+
+```typescript
+export const Formats: FormatList = [
+  {
+    section: "Custom Formats",
+  },
+  {
+    name: "[Gen 9] Custom Format",
+    desc: "Description of your format.",
+    mod: 'gen9',
+    ruleset: ['Standard', 'Sleep Moves Clause'],
+    banlist: ['Uber', 'Arena Trap'],
+  },
+];
+```
+
+## Format Properties
+
+### Basic Properties
+
+```typescript
+{
+  name: "[Gen 9] My Format",           // Format name (required)
+  desc: "Format description",          // Shows in format selector
+  mod: 'gen9',                          // Generation mod (gen9, gen8, etc.)
+  gameType: 'doubles',                  // 'singles', 'doubles', 'triples', 'freeforall'
+  searchShow: false,                    // Hide from search
+  challengeShow: false,                 // Hide from challenge window
+  tournamentShow: false,                // Hide from tournament creation
+  rated: false,                         // Allow rated battles
+  team: 'random',                       // Team generation: 'random', 'preset'
+}
+```
+
+### Rulesets and Banlists
+
+```typescript
+{
+  ruleset: [
+    'Standard',                         // Standard Smogon ruleset
+    'Team Preview',                     // Enable team preview
+    'Sleep Moves Clause',               // Prevent multiple sleep moves
+    'Species Clause',                   // Limit one per species
+  ],
+  banlist: [
+    'Uber',                             // Ban Uber tier Pokemon
+    'AG',                               // Ban Anything Goes Pokemon
+    'Baton Pass',                       // Ban specific move
+    'Arena Trap',                       // Ban specific ability
+    'King\'s Rock',                     // Ban specific item
+  ],
+  unbanlist: [
+    'Blaziken',                         // Unban specific Pokemon
+  ],
+}
+```
+
+## Custom Rules
+
+### Bans and Unbans
+
+<Tabs>
+  <Tab title="Pokemon Bans">
+    ```text
+    - Arceus              # Ban all formes
+    - Arceus-Flying       # Ban specific forme
+    - Giratina-Base       # Ban only base forme
+    ```
+  </Tab>
+  
+  <Tab title="Move/Item Bans">
+    ```text
+    - Baton Pass          # Ban a move
+    - move: Metronome     # Specify it's a move
+    - Bright Powder       # Ban an item
+    - item: Metronome     # Specify it's an item
+    ```
+  </Tab>
+  
+  <Tab title="Group Bans">
+    ```text
+    - OU                  # Ban a tier
+    - Mega                # Ban all Megas
+    - CAP                 # Ban all Create-A-Pokemon
+    - Past                # Ban past-gen exclusives
+    - Mythical            # Ban all Mythicals
+    - Restricted Legendary # Ban restricted legendaries
+    ```
+  </Tab>
+  
+  <Tab title="Complex Bans">
+    ```text
+    - Blaziken + Speed Boost         # Ban combination on one Pokemon
+    - Drizzle ++ Swift Swim          # Ban combination across team
+    ```
+  </Tab>
+</Tabs>
+
+### Value Rules
+
+Rules that accept numeric values:
+
+```text
+Max Level = 50                       # Level cap
+Min Level = 10                       # Minimum level
+Max Team Size = 4                    # Team size before preview
+Min Team Size = 4                    # Minimum team size
+Picked Team Size = 4                 # Must pick exactly 4 in preview
+Max Move Count = 5                   # Allow up to 5 moves
+Max Total Level = 200                # Combined level limit
+Adjust Level = 50                    # Set all to level 50
+Force Monotype = Water               # Require specific type
+EV Limits = Atk 0-100 / Def 50-150  # EV range restrictions
+```
+
+### Legality Rules
+
+```text
+Obtainable                           # Only legal Pokemon/moves/abilities
+Obtainable Moves                     # Only learnable moves
+Obtainable Abilities                 # Only natural abilities
+Obtainable Formes                    # No battle-only formes
+Hoenn Pokedex                        # Regional dex restrictions
+```
+
+### In-Battle Rules
+
+```text
+Team Preview                         # Enable team preview
+Blitz                                # 30s preview, 10s per turn
+VGC Timer                            # 90s preview, 7min your time, 1min per turn
+Sleep Clause Mod                     # Prevent sleep with sleeping allies
+Cancel Mod                           # Show cancel button
+Inverse Mod                          # Inverse type effectiveness
+Dynamax Clause                       # Ban Dynamax
+```
+
+## Example Custom Formats
+
+### Monotype Format
+
+```typescript
+{
+  name: "[Gen 9] Monotype",
+  mod: 'gen9',
+  ruleset: [
+    'Standard',
+    'Evasion Abilities Clause',
+    'Same Type Clause',              // Force monotype
+    'Terastal Clause',
+  ],
+  banlist: [
+    'Annihilape', 'Arceus', 'Baxcalibur',
+    'Calyrex-Ice', 'Calyrex-Shadow',
+    'Moody', 'Shadow Tag',
+    'Baton Pass', 'Last Respects', 'Shed Tail',
+  ],
+}
+```
+
+### Little Cup Format
+
+```typescript
+{
+  name: "[Gen 9] LC",
+  mod: 'gen9',
+  ruleset: [
+    'Little Cup',                     // Only unevolved Pokemon
+    'Standard',
+  ],
+  banlist: [
+    'Aipom', 'Cutiefly', 'Gastly',
+    'Girafarig', 'Scyther', 'Yanma',
+    'Moody',
+    'Baton Pass', 'Sticky Web',
+  ],
+}
+```
+
+### VGC-Style Format
+
+```typescript
+{
+  name: "[Gen 9] VGC 2026",
+  mod: 'gen9',
+  gameType: 'doubles',
+  bestOfDefault: true,
+  ruleset: [
+    'Flat Rules',
+    '!! Adjust Level = 50',
+    'Min Source Gen = 9',
+    'VGC Timer',
+    'Limit Two Restricted',
+  ],
+  restricted: ['Restricted Legendary'],
+}
+```
+
+### Custom OM Format
+
+```typescript
+{
+  name: "[Gen 9] Almost Any Ability",
+  desc: "Pokemon have access to almost any ability.",
+  mod: 'gen9',
+  ruleset: [
+    'Standard OMs',
+    '!Obtainable Abilities',         // Remove ability restrictions
+    'Ability Clause = 1',            // Limit one of each ability
+    'Sleep Moves Clause',
+    'Terastal Clause',
+  ],
+  banlist: [
+    'Annihilape', 'Arceus', 'Baxcalibur',
+    'Arena Trap', 'Huge Power', 'Moody',
+    'Shadow Tag', 'Wonder Guard',
+    'Baton Pass', 'Last Respects',
+  ],
+}
+```
+
+## Challenge Format
+
+Use custom rules in challenges with the `@@@` syntax:
+
+```text
+/challenge username, [Gen 9] OU @@@ -Uber, +Blaziken, Max Level = 50
+```
+
+## Tournament Format
+
+Apply rules to tournaments:
+
+```text
+/tour rules -Landorus-Therian, -Ogerpon-Wellspring
+```
+
+## Creating Custom Format Files
+
+<Steps>
+  <Step title="Create custom-formats.ts">
+    Create `config/custom-formats.ts` in your server directory:
+    
+    ```typescript
+    // Note: This is the list of formats
+    // The rules that formats use are stored in data/rulesets.ts
+    
+    export const Formats: FormatList = [
+      // Your formats here
+    ];
+    ```
+  </Step>
+  
+  <Step title="Add Format Sections">
+    Organize formats into sections:
+    
+    ```typescript
+    {
+      section: "Custom Singles",
+    },
+    {
+      name: "[Gen 9] Custom Format 1",
+      // ...
+    },
+    {
+      name: "[Gen 9] Custom Format 2",
+      // ...
+    },
+    ```
+  </Step>
+  
+  <Step title="Restart Server">
+    Restart your Pokemon Showdown server for changes to take effect:
+    
+    ```bash
+    ./pokemon-showdown
+    ```
+  </Step>
+</Steps>
+
+## Advanced: Format Hooks
+
+Add custom battle logic with format hooks:
+
+```typescript
+{
+  name: "[Gen 9] Custom Format",
+  mod: 'gen9',
+  ruleset: ['Standard'],
+  onBegin() {
+    this.add('-message', 'Welcome to the custom format!');
+  },
+  onModifyDamage(damage, source, target, move) {
+    // Custom damage calculation
+    return this.chainModify(1.5);
+  },
+  onSwitchIn(pokemon) {
+    // Trigger on switch
+    this.add('-message', `${pokemon.name} switched in!`);
+  },
+}
+```
+
+## Rule Combinations
+
+### Whitelisting
+
+Create an allowed-only list:
+
+```text
+- all pokemon, + Charmander, + Squirtle, + Bulbasaur
+- all moves, + move: Metronome
+- all abilities, + No Ability
+```
+
+### Removing Rules
+
+Remove parts of standard rulesets:
+
+```text
+! Team Preview                       # Remove team preview
+Obtainable, ! Obtainable Moves       # Allow any moves
+Flat Rules, !! Picked Team Size = 5  # Override value rule
+```
+
+## Testing Your Format
+
+<Steps>
+  <Step title="Challenge Format">
+    Test with `/challenge` command first:
+    
+    ```text
+    /challenge username, [Gen 9] Custom Format
+    ```
+  </Step>
+  
+  <Step title="Create Room">
+    Create a test room to try battles:
+    
+    ```text
+    /makechatroom [roomname]
+    ```
+  </Step>
+  
+  <Step title="Tournament Test">
+    Test tournament integration:
+    
+    ```text
+    /tour new [Gen 9] Custom Format, elimination
+    ```
+  </Step>
+</Steps>
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card title="Custom Rules Reference" icon="book" href="https://github.com/smogon/pokemon-showdown/blob/master/config/CUSTOM-RULES.md">
+    Complete custom rules documentation
+  </Card>
+  
+  <Card title="Rulesets Source" icon="code" href="https://github.com/smogon/pokemon-showdown/blob/master/data/rulesets.ts">
+    View all available rulesets
+  </Card>
+  
+  <Card title="Format Examples" icon="eye" href="https://github.com/smogon/pokemon-showdown/blob/master/config/formats.ts">
+    Official formats for reference
+  </Card>
+  
+  <Card title="Mod System" icon="puzzle-piece">
+    See the Modding guide for custom mechanics
+  </Card>
+</CardGroup>

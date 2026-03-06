@@ -1,0 +1,525 @@
+---
+title: Teams
+description: Teams class for converting and generating Pokemon teams
+---
+
+The `Teams` class provides methods for converting between different team formats and generating random teams in Pokemon Showdown.
+
+## Team Formats
+
+Pokemon Showdown uses three team formats:
+
+<CardGroup cols={3}>
+  <Card title="Export Format" icon="file-export">
+    Human-readable format for import/export
+  </Card>
+  <Card title="JSON Format" icon="brackets-curly">
+    Structured format using `PokemonSet[]`
+  </Card>
+  <Card title="Packed Format" icon="box">
+    Compressed format for transmission/storage
+  </Card>
+</CardGroup>
+
+## PokemonSet Interface
+
+The `PokemonSet` interface represents a single Pokemon's configuration:
+
+```typescript
+interface PokemonSet {
+  name: string;           // Nickname
+  species: string;        // Species name (e.g., "Minior-Red")
+  item: string;           // Held item
+  ability: string;        // Ability name
+  moves: string[];        // Array of move names
+  nature: string;         // Nature name
+  gender: string;         // "M", "F", or ""
+  evs: StatsTable;        // Effort Values (0-255)
+  ivs: StatsTable;        // Individual Values (0-31)
+  level: number;          // Level (1-100, supports up to 9999)
+  shiny?: boolean;        // Shiny status
+  happiness?: number;     // Happiness value (0-255)
+  pokeball?: string;      // Pokeball type
+  hpType?: string;        // Hidden Power type
+  dynamaxLevel?: number;  // Dynamax level (0-10)
+  gigantamax?: boolean;   // Gigantamax capable
+  teraType?: string;      // Tera type
+}
+```
+
+## Methods
+
+### pack()
+
+Converts a JSON team to packed format (compressed string).
+
+```typescript
+Teams.pack(team: PokemonSet[] | null): string
+```
+
+<ParamField path="team" type="PokemonSet[] | null">
+  Array of Pokemon sets to pack, or null
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Packed team string, or empty string if team is null
+</ResponseField>
+
+<CodeGroup>
+```typescript Example
+import { Teams } from './sim/teams';
+
+const team = [{
+  name: 'Articuno',
+  species: 'Articuno',
+  item: 'Leftovers',
+  ability: 'Pressure',
+  moves: ['Ice Beam', 'Hurricane', 'Substitute', 'Roost'],
+  nature: 'Modest',
+  evs: { hp: 252, atk: 0, def: 0, spa: 252, spd: 4, spe: 0 },
+  ivs: { hp: 31, atk: 31, def: 31, spa: 30, spd: 30, spe: 31 },
+  level: 100,
+  gender: ''
+}];
+
+const packed = Teams.pack(team);
+console.log(packed);
+// Output: Articuno||leftovers|pressure|icebeam,hurricane,substitute,roost|Modest|252,,,252,4,||,,,30,30,|||
+```
+
+```javascript Packed Format Structure
+// Format: NICKNAME|SPECIES|ITEM|ABILITY|MOVES|NATURE|EVS|GENDER|IVS|SHINY|LEVEL|HAPPINESS,POKEBALL,HPTYPE,GMAX,DYNAMAXLVL,TERATYPE
+// Pokemon separated by ']'
+
+// Special values:
+// - SPECIES blank if identical to NICKNAME
+// - ABILITY can be '0', '1', 'H' for ability slots
+// - EVs/IVs blank = 0/31 respectively
+// - SHINY: 'S' for shiny, blank otherwise
+// - LEVEL blank = 100
+// - HAPPINESS blank = 255
+```
+</CodeGroup>
+
+### unpack()
+
+Converts a packed team string to JSON format.
+
+```typescript
+Teams.unpack(buf: string): PokemonSet[] | null
+```
+
+<ParamField path="buf" type="string">
+  Packed team string to unpack. Can also accept JSON string format.
+</ParamField>
+
+<ResponseField name="return" type="PokemonSet[] | null">
+  Array of Pokemon sets, or null if invalid
+</ResponseField>
+
+<CodeGroup>
+```typescript Example
+import { Teams } from './sim/teams';
+
+const packed = 'Articuno||leftovers|pressure|icebeam,hurricane,substitute,roost|Modest|252,,,252,4,||,,,30,30,|||';
+const team = Teams.unpack(packed);
+
+console.log(team[0].species); // "Articuno"
+console.log(team[0].ability); // "Pressure"
+console.log(team[0].moves);   // ["Ice Beam", "Hurricane", "Substitute", "Roost"]
+```
+
+```typescript Multiple Pokemon
+const packed = 'Articuno||leftovers|pressure|icebeam,hurricane,substitute,roost|Modest|252,,,252,4,||,,,30,30,|||]Ludicolo||lifeorb|swiftswim|surf,gigadrain,icebeam,raindance|Modest|4,,,252,,252|||||';
+
+const team = Teams.unpack(packed);
+console.log(team.length); // 2
+```
+</CodeGroup>
+
+<Note>
+  The `unpack()` method has a limit of 24 Pokemon per team for simulator compatibility.
+</Note>
+
+### export()
+
+Converts a JSON team to human-readable export format.
+
+```typescript
+Teams.export(team: PokemonSet[], options?: ExportOptions): string
+```
+
+<ParamField path="team" type="PokemonSet[]">
+  Array of Pokemon sets to export
+</ParamField>
+
+<ParamField path="options" type="ExportOptions" optional>
+  Export options
+  
+  <ParamField path="hideStats" type="boolean" optional>
+    Hide EVs, IVs, and nature from export
+  </ParamField>
+  
+  <ParamField path="removeNicknames" type="boolean | (nickname: string) => string | null" optional>
+    Remove or transform nicknames. If true, removes all nicknames. If function, transforms each nickname.
+  </ParamField>
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Human-readable team string in export format
+</ResponseField>
+
+<CodeGroup>
+```typescript Basic Usage
+import { Teams } from './sim/teams';
+
+const team = [{
+  name: 'Articuno',
+  species: 'Articuno',
+  item: 'Leftovers',
+  ability: 'Pressure',
+  moves: ['Ice Beam', 'Hurricane', 'Substitute', 'Roost'],
+  nature: 'Modest',
+  evs: { hp: 252, atk: 0, def: 0, spa: 252, spd: 4, spe: 0 },
+  ivs: { hp: 31, atk: 31, def: 31, spa: 30, spd: 30, spe: 31 },
+  level: 100,
+  gender: ''
+}];
+
+const exported = Teams.export(team);
+console.log(exported);
+```
+
+```text Output
+Articuno @ Leftovers  
+Ability: Pressure  
+EVs: 252 HP / 252 SpA / 4 SpD  
+Modest Nature  
+IVs: 30 SpA / 30 SpD  
+- Ice Beam  
+- Hurricane  
+- Substitute  
+- Roost  
+```
+
+```typescript Hide Stats
+const exported = Teams.export(team, { hideStats: true });
+// EVs, IVs, and nature will be omitted
+```
+
+```typescript Remove Nicknames
+const exported = Teams.export(team, { removeNicknames: true });
+// All nicknames removed, only species names shown
+```
+</CodeGroup>
+
+### exportSet()
+
+Converts a single Pokemon set to export format.
+
+```typescript
+Teams.exportSet(set: PokemonSet, options?: ExportOptions): string
+```
+
+<ParamField path="set" type="PokemonSet">
+  Single Pokemon set to export
+</ParamField>
+
+<ParamField path="options" type="ExportOptions" optional>
+  Same export options as `export()`
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Human-readable Pokemon set string
+</ResponseField>
+
+```typescript
+import { Teams } from './sim/teams';
+
+const set = {
+  name: 'Frosty',
+  species: 'Articuno',
+  item: 'Leftovers',
+  ability: 'Pressure',
+  moves: ['Ice Beam', 'Hurricane'],
+  nature: 'Modest',
+  evs: { hp: 252, atk: 0, def: 0, spa: 252, spd: 4, spe: 0 },
+  ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
+  level: 100,
+  gender: 'F'
+};
+
+const exported = Teams.exportSet(set);
+// Output:
+// Frosty (Articuno) (F) @ Leftovers  
+// Ability: Pressure  
+// EVs: 252 HP / 252 SpA / 4 SpD  
+// Modest Nature  
+// - Ice Beam  
+// - Hurricane  
+```
+
+### import()
+
+Converts a team from any string format (export, packed, or JSON) to JSON format.
+
+```typescript
+Teams.import(buffer: string, aggressive?: boolean): PokemonSet[] | null
+```
+
+<ParamField path="buffer" type="string">
+  Team string in any format (export, packed, or JSON)
+</ParamField>
+
+<ParamField path="aggressive" type="boolean" optional>
+  If true, uses `toID()` for sanitization instead of `Dex.getName()`. This converts all names to IDs (lowercase, no spaces).
+</ParamField>
+
+<ResponseField name="return" type="PokemonSet[] | null">
+  Array of Pokemon sets, or null if invalid
+</ResponseField>
+
+<CodeGroup>
+```typescript From Export Format
+import { Teams } from './sim/teams';
+
+const exported = `
+Articuno @ Leftovers  
+Ability: Pressure  
+EVs: 252 HP / 252 SpA / 4 SpD  
+Modest Nature  
+- Ice Beam  
+- Hurricane  
+`;
+
+const team = Teams.import(exported);
+console.log(team[0].species); // "Articuno"
+```
+
+```typescript From Packed Format
+const packed = 'Articuno||leftovers|pressure|icebeam,hurricane|Modest|252,,,252,4,|||||';
+const team = Teams.import(packed);
+```
+
+```typescript From JSON Format
+const json = '[{"species":"Articuno","item":"Leftovers"}]';
+const team = Teams.import(json);
+```
+
+```typescript Aggressive Mode
+// Aggressive mode converts all names to IDs
+const team = Teams.import(exported, true);
+console.log(team[0].ability); // "pressure" (lowercase)
+```
+</CodeGroup>
+
+<Note>
+  The `import()` method automatically detects the format and converts appropriately. It handles export format (newline-separated), packed format (pipe-separated), and JSON format (array).
+</Note>
+
+### generate()
+
+Generates a random team for a specific format.
+
+```typescript
+Teams.generate(format: Format | string, options?: PlayerOptions | null): PokemonSet[]
+```
+
+<ParamField path="format" type="Format | string">
+  Format name or Format object (e.g., "gen9randombattle")
+</ParamField>
+
+<ParamField path="options" type="PlayerOptions | null" optional>
+  Generation options
+  
+  <ParamField path="seed" type="PRNGSeed" optional>
+    PRNG seed for reproducible team generation (array of 4 numbers)
+  </ParamField>
+</ParamField>
+
+<ResponseField name="return" type="PokemonSet[]">
+  Generated team as array of Pokemon sets
+</ResponseField>
+
+<CodeGroup>
+```typescript Basic Usage
+import { Teams } from './sim/teams';
+
+const team = Teams.generate('gen9randombattle');
+console.log(team.length); // 6 (or format-specific team size)
+console.log(team[0].species); // Random species
+```
+
+```typescript With Seed
+import { Teams, PRNG } from './sim';
+
+// Generate reproducible team
+const seed = PRNG.generateSeed();
+const team1 = Teams.generate('gen9randombattle', { seed });
+const team2 = Teams.generate('gen9randombattle', { seed });
+
+// team1 and team2 will be identical
+```
+
+```typescript Different Formats
+// Gen 9 Random Battle
+const gen9team = Teams.generate('gen9randombattle');
+
+// Gen 8 Random Battle
+const gen8team = Teams.generate('gen8randombattle');
+
+// Gen 9 Free-For-All Random Battle
+const ffateam = Teams.generate('gen9freeforallrandombattle');
+```
+</CodeGroup>
+
+### getGenerator()
+
+Gets a team generator instance for a specific format.
+
+```typescript
+Teams.getGenerator(format: Format | string, seed?: PRNG | PRNGSeed | null): TeamGenerator
+```
+
+<ParamField path="format" type="Format | string">
+  Format name or Format object
+</ParamField>
+
+<ParamField path="seed" type="PRNG | PRNGSeed | null" optional>
+  PRNG instance or seed for reproducible generation
+</ParamField>
+
+<ResponseField name="return" type="TeamGenerator">
+  Team generator instance for the specified format
+</ResponseField>
+
+```typescript
+import { Teams } from './sim/teams';
+
+const generator = Teams.getGenerator('gen9randombattle');
+const team = generator.getTeam();
+
+// You can generate multiple teams from the same generator
+const team2 = generator.getTeam();
+```
+
+## Utility Methods
+
+### packName()
+
+Converts a name to packed format (removes special characters, keeps case).
+
+```typescript
+Teams.packName(name: string | undefined | null): string
+```
+
+<ParamField path="name" type="string | undefined | null">
+  Name to pack
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Packed name with only alphanumeric characters
+</ResponseField>
+
+```typescript
+import { Teams } from './sim/teams';
+
+console.log(Teams.packName('Farfetch\'d')); // "Farfetchd"
+console.log(Teams.packName('Ho-Oh'));       // "HoOh"
+console.log(Teams.packName('Mr. Mime'));    // "MrMime"
+```
+
+<Note>
+  Unlike `toID()`, `packName()` preserves case. This is important for distinguishing between species names and IDs in packed format.
+</Note>
+
+### unpackName()
+
+Attempts to recover a readable name from a packed name.
+
+```typescript
+Teams.unpackName(name: string, dexTable?: { get: (name: string) => AnyObject }): string
+```
+
+<ParamField path="name" type="string">
+  Packed name to unpack
+</ParamField>
+
+<ParamField path="dexTable" type="{ get: (name: string) => AnyObject }" optional>
+  Dex table (e.g., `Dex.species`, `Dex.items`) for accurate name lookup
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Readable name with spaces added
+</ResponseField>
+
+```typescript
+import { Teams, Dex } from './sim';
+
+// With dex table (accurate)
+console.log(Teams.unpackName('dragondance', Dex.moves)); // "Dragon Dance"
+console.log(Teams.unpackName('leftovers', Dex.items));   // "Leftovers"
+
+// Without dex table (guess)
+console.log(Teams.unpackName('HoOh'));        // "Ho Oh"
+console.log(Teams.unpackName('MrMime'));      // "Mr Mime"
+```
+
+## Usage Examples
+
+### Converting Between Formats
+
+```typescript
+import { Teams } from './sim/teams';
+
+// Export to Packed
+const packedTeam = 'Articuno||leftovers|pressure|icebeam,hurricane|Modest|252,,,252,4,|||||';
+const jsonTeam = Teams.unpack(packedTeam);
+const exportedTeam = Teams.export(jsonTeam);
+
+// Export to Packed
+const backToPacked = Teams.pack(jsonTeam);
+
+// Import any format
+const team1 = Teams.import(packedTeam);
+const team2 = Teams.import(exportedTeam);
+const team3 = Teams.import('[{"species":"Articuno"}]');
+```
+
+### Working with Team Data
+
+```typescript
+import { Teams } from './sim/teams';
+
+const team = Teams.unpack('Articuno||leftovers|pressure|icebeam,hurricane|Modest|252,,,252,4,|||||');
+
+// Modify team
+team[0].moves.push('Substitute');
+team[0].evs.spe = 252;
+team[0].evs.spa = 0;
+
+// Export modified team
+const modified = Teams.export(team);
+console.log(modified);
+```
+
+### Generating Teams for Testing
+
+```typescript
+import { Teams, PRNG } from './sim';
+
+// Generate consistent test teams
+const testSeed = [0x12345678, 0x9abcdef0, 0x11111111, 0x22222222];
+
+const team1 = Teams.generate('gen9ou', { seed: testSeed });
+const team2 = Teams.generate('gen9ou', { seed: testSeed });
+
+// team1 and team2 are identical
+console.log(JSON.stringify(team1) === JSON.stringify(team2)); // true
+```
+
+## See Also
+
+- [Team Validator](/api/team-validator) - Validate teams for format legality
+- [Dex](/api/dex) - Access Pokemon data
+- [PRNG](/api/prng) - Pseudo-random number generation

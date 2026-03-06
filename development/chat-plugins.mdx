@@ -1,0 +1,695 @@
+---
+title: Chat Plugins
+description: Create custom chat commands and features for Pokemon Showdown
+icon: message-code
+---
+
+Chat plugins extend Pokemon Showdown's chat functionality with custom commands, games, and features. They're stored in `server/chat-plugins/` and can add slash commands, page handlers, and event listeners.
+
+## Plugin Structure
+
+A basic chat plugin exports commands and optional handlers:
+
+```typescript plugin.ts
+import { Utils } from '../../lib';
+
+export const commands: Chat.ChatCommands = {
+  mycommand(target, room, user) {
+    // Command implementation
+  },
+  mycommandhelp: [
+    `/mycommand [args] - Description of what the command does.`,
+  ],
+};
+
+export const pages: Chat.PageTable = {
+  mypage(args, user) {
+    // Page handler implementation
+  },
+};
+```
+
+## Creating a Command
+
+<Steps>
+  <Step title="Create Plugin File">
+    Create a TypeScript file in `server/chat-plugins/`:
+    
+    ```bash
+    touch server/chat-plugins/myplugin.ts
+    ```
+  </Step>
+  
+  <Step title="Export Commands">
+    Define your commands:
+    
+    ```typescript
+    export const commands: Chat.ChatCommands = {
+      hello(target, room, user) {
+        return this.sendReply("Hello, world!");
+      },
+    };
+    ```
+  </Step>
+  
+  <Step title="Restart Server">
+    Restart Pokemon Showdown to load the plugin:
+    
+    ```bash
+    ./pokemon-showdown
+    ```
+  </Step>
+  
+  <Step title="Test Command">
+    Use the command in chat:
+    
+    ```text
+    /hello
+    ```
+  </Step>
+</Steps>
+
+## Command Basics
+
+### Command Function Signature
+
+```typescript
+commandname(
+  target: string,    // Arguments passed to command
+  room: Room,        // Room where command was used
+  user: User,        // User who used command
+  connection: Connection,  // User's connection
+  cmd: string,       // Command name used
+  message: string    // Original message
+) {
+  // Command implementation
+}
+```
+
+### Common Patterns
+
+<Tabs>
+  <Tab title="Send Reply">
+    ```typescript
+    mycommand(target, room, user) {
+      this.sendReply("Message sent to command user only");
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Room Message">
+    ```typescript
+    mycommand(target, room, user) {
+      room = this.requireRoom(); // Ensure in a room
+      this.add(`Message visible to all in ${room.title}`);
+      this.update(); // Send update to room
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Permission Check">
+    ```typescript
+    mycommand(target, room, user) {
+      room = this.requireRoom();
+      this.checkCan('mute', null, room); // Requires % or higher
+      // Command logic
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Parse Arguments">
+    ```typescript
+    mycommand(target, room, user) {
+      const [arg1, arg2] = target.split(',').map(x => x.trim());
+      if (!arg1 || !arg2) {
+        return this.parse('/help mycommand');
+      }
+      // Use arg1 and arg2
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Example: Quote Plugin
+
+A simple plugin for room quotes:
+
+```typescript quotes.ts
+import { FS, Utils } from '../../lib';
+
+const STORAGE_PATH = 'config/chat-plugins/quotes.json';
+const MAX_QUOTES = 300;
+
+interface Quote {
+  userid: string;
+  quote: string;
+  date: number;
+}
+
+const quotes: { [room: string]: Quote[] } = 
+  JSON.parse(FS(STORAGE_PATH).readIfExistsSync() || "{}");
+
+function saveQuotes() {
+  FS(STORAGE_PATH).writeUpdate(() => JSON.stringify(quotes));
+}
+
+export const commands: Chat.ChatCommands = {
+  randquote(target, room, user) {
+    room = this.requireRoom();
+    const roomQuotes = quotes[room.roomid];
+    if (!roomQuotes?.length) {
+      throw new Chat.ErrorMessage(`This room has no quotes.`);
+    }
+    
+    this.runBroadcast(true);
+    const { quote, date, userid } = 
+      roomQuotes[Math.floor(Math.random() * roomQuotes.length)];
+    const time = Chat.toTimestamp(new Date(date), { human: true });
+    
+    const showAuthor = toID(target) === 'showauthor';
+    const attribution = showAuthor ? 
+      `<hr /><small>Added by ${userid} on ${time}</small>` : '';
+    
+    return this.sendReplyBox(
+      `${Chat.getReadmoreBlock(quote)}${attribution}`
+    );
+  },
+  randquotehelp: [
+    `/randquote [showauthor] - Show random quote from room.`,
+  ],
+  
+  addquote(target, room, user) {
+    room = this.requireRoom();
+    if (!room.persist) {
+      throw new Chat.ErrorMessage(
+        "This command is unavailable in temporary rooms."
+      );
+    }
+    
+    target = target.trim();
+    this.checkCan('mute', null, room);
+    
+    if (!target) return this.parse(`/help addquote`);
+    if (!quotes[room.roomid]) quotes[room.roomid] = [];
+    
+    const roomQuotes = quotes[room.roomid];
+    
+    if (this.filter(target) !== target) {
+      throw new Chat.ErrorMessage(`Invalid quote.`);
+    }
+    
+    if (roomQuotes.some(item => item.quote === target)) {
+      throw new Chat.ErrorMessage(
+        `"${target}" is already quoted in this room.`
+      );
+    }
+    
+    if (target.length > 8192) {
+      throw new Chat.ErrorMessage(
+        `Your quote cannot exceed 8192 characters.`
+      );
+    }
+    
+    roomQuotes.push({ userid: user.id, quote: target, date: Date.now() });
+    saveQuotes();
+    
+    this.refreshPage(`quotes-${room.roomid}`);
+    const collapsedQuote = target.replace(/\n/g, ' ');
+    this.privateModAction(
+      `${user.name} added a new quote: "${collapsedQuote}".`
+    );
+    return this.modlog(`ADDQUOTE`, null, collapsedQuote);
+  },
+  addquotehelp: [
+    `/addquote [quote] - Adds quote to room. Requires: % @ # ~`,
+  ],
+  
+  removequote(target, room, user) {
+    room = this.requireRoom();
+    this.checkCan('mute', null, room);
+    
+    if (!quotes[room.roomid]?.length) {
+      throw new Chat.ErrorMessage(`This room has no quotes.`);
+    }
+    
+    const roomQuotes = quotes[room.roomid];
+    const index = toID(target) === 'last' ? 
+      roomQuotes.length - 1 : parseInt(toID(target)) - 1;
+    
+    if (isNaN(index)) {
+      throw new Chat.ErrorMessage(`Invalid index.`);
+    }
+    
+    if (!roomQuotes[index]) {
+      throw new Chat.ErrorMessage(`Quote not found.`);
+    }
+    
+    const [removed] = roomQuotes.splice(index, 1);
+    const collapsedQuote = removed.quote.replace(/\n/g, ' ');
+    
+    this.privateModAction(
+      `${user.name} removed quote indexed at ${index + 1}: ` +
+      `"${collapsedQuote}" (originally added by ${removed.userid}).`
+    );
+    this.modlog(`REMOVEQUOTE`, null, collapsedQuote);
+    saveQuotes();
+    this.refreshPage(`quotes-${room.roomid}`);
+  },
+  removequotehelp: [
+    `/removequote [index] - Removes quote from room. Requires: % @ # ~`,
+  ],
+};
+```
+
+## Example: Poll Plugin
+
+A more complex plugin with activities:
+
+```typescript poll.ts
+import { Utils } from '../../lib';
+
+const MINUTES = 60000;
+const MAX_QUESTIONS = 10;
+
+interface PollAnswer {
+  name: string;
+  votes: number;
+  correct?: boolean;
+}
+
+export interface PollOptions {
+  activityNumber?: number;
+  question: string;
+  supportHTML: boolean;
+  multiPoll: boolean;
+  pendingVotes?: { [userid: string]: number[] };
+  voters?: { [k: string]: number[] };
+  voterIps?: { [k: string]: number[] };
+  maxVotes?: number;
+  totalVotes?: number;
+  answers: string[] | PollAnswer[];
+}
+
+export class Poll extends Rooms.MinorActivity {
+  readonly activityid = 'poll' as ID;
+  name = "Poll";
+  activityNumber: number;
+  question: string;
+  multiPoll: boolean;
+  pendingVotes: { [userid: string]: number[] };
+  voters: { [k: string]: number[] };
+  voterIps: { [k: string]: number[] };
+  totalVotes: number;
+  maxVotes: number;
+  answers: Map<number, PollAnswer>;
+  
+  constructor(room: Room, options: PollOptions) {
+    super(room);
+    this.activityNumber = options.activityNumber || room.nextGameNumber();
+    this.question = options.question;
+    this.supportHTML = options.supportHTML;
+    this.multiPoll = options.multiPoll;
+    this.pendingVotes = options.pendingVotes || {};
+    this.voters = options.voters || {};
+    this.voterIps = options.voterIps || {};
+    this.totalVotes = options.totalVotes || 0;
+    this.maxVotes = options.maxVotes || 0;
+    this.answers = Poll.getAnswers(options.answers);
+  }
+  
+  select(user: User, option: number) {
+    const userid = user.id;
+    if (!this.multiPoll) {
+      this.pendingVotes[userid] = [option];
+      this.submit(user);
+      return;
+    }
+    
+    if (!this.pendingVotes[userid]) {
+      this.pendingVotes[userid] = [];
+    }
+    
+    if (this.pendingVotes[userid].includes(option)) {
+      throw new Chat.ErrorMessage(
+        this.room.tr`That option is already selected.`
+      );
+    }
+    
+    this.pendingVotes[userid].push(option);
+    this.updateFor(user);
+    this.save();
+  }
+  
+  submit(user: User) {
+    const ip = user.latestIp;
+    const userid = user.id;
+    
+    if (userid in this.voters || (!Config.noipchecks && ip in this.voterIps)) {
+      delete this.pendingVotes[userid];
+      throw new Chat.ErrorMessage(
+        this.room.tr`You have already voted for this poll.`
+      );
+    }
+    
+    const selected = this.pendingVotes[userid];
+    if (!selected) {
+      throw new Chat.ErrorMessage(this.room.tr`No options selected.`);
+    }
+    
+    this.voters[userid] = selected;
+    this.voterIps[ip] = selected;
+    
+    for (const option of selected) {
+      this.answers.get(option)!.votes++;
+    }
+    
+    delete this.pendingVotes[userid];
+    this.totalVotes++;
+    
+    if (this.maxVotes && this.totalVotes >= this.maxVotes) {
+      this.end(this.room);
+      return this.room
+        .add(`|c|~|/log Poll hit max vote cap and ended.`)
+        .update();
+    }
+    
+    this.update();
+    this.save();
+  }
+}
+
+export const commands: Chat.ChatCommands = {
+  poll: 'createpoll',
+  createpoll(target, room, user) {
+    room = this.requireRoom();
+    this.checkCan('minigame', null, room);
+    
+    if (room.getMinorActivity()) {
+      throw new Chat.ErrorMessage(
+        `There is already a poll or announcement in this room.`
+      );
+    }
+    
+    const [question, ...answers] = target.split(',').map(x => x.trim());
+    
+    if (!question || answers.length < 2) {
+      return this.parse('/help poll');
+    }
+    
+    if (answers.length > MAX_QUESTIONS) {
+      throw new Chat.ErrorMessage(
+        `Polls can have a maximum of ${MAX_QUESTIONS} options.`
+      );
+    }
+    
+    const poll = new Poll(room, {
+      question,
+      answers,
+      supportHTML: false,
+      multiPoll: false,
+    });
+    
+    room.setMinorActivity(poll);
+    this.modlog('POLL');
+    return this.privateModAction(
+      `${user.name} created a poll: ${question}`
+    );
+  },
+  createpollhelp: [
+    `/poll [question], [option1], [option2], [...] - Creates a poll.`,
+    `Requires: % @ # ~`,
+  ],
+  
+  vote(target, room, user) {
+    room = this.requireRoom();
+    const poll = room.getMinorActivity();
+    
+    if (!poll || poll.activityid !== 'poll') {
+      throw new Chat.ErrorMessage(`There is no poll running.`);
+    }
+    
+    const option = parseInt(target);
+    if (isNaN(option)) {
+      throw new Chat.ErrorMessage(`Invalid option.`);
+    }
+    
+    poll.select(user, option - 1);
+  },
+  votehelp: [`/vote [option number] - Vote in a poll.`],
+  
+  endpoll(target, room, user) {
+    room = this.requireRoom();
+    this.checkCan('minigame', null, room);
+    
+    const poll = room.getMinorActivity();
+    if (!poll || poll.activityid !== 'poll') {
+      throw new Chat.ErrorMessage(`There is no poll running.`);
+    }
+    
+    poll.end(room);
+    this.modlog('ENDPOLL');
+    return this.privateModAction(`${user.name} ended the poll.`);
+  },
+  endpollhelp: [`/endpoll - Ends the current poll. Requires: % @ # ~`],
+};
+```
+
+## Permission Levels
+
+Check user permissions:
+
+```typescript
+// Basic permission check
+this.checkCan('mute', null, room);  // Requires % or higher
+
+// Permission levels (lowest to highest)
+this.checkCan('show');              // Regular user (+)
+this.checkCan('warn');              // Driver (%)
+this.checkCan('mute');              // Moderator (@)
+this.checkCan('ban');               // Room Owner (#)
+this.checkCan('makeroom');          // Administrator (~)
+this.checkCan('lockdown');          // Leader (&)
+
+// Check specific user
+this.checkCan('mute', targetUser, room);
+
+// Check without error
+if (!user.can('mute', null, room)) {
+  return this.sendReply("You don't have permission.");
+}
+```
+
+## Utility Functions
+
+<Tabs>
+  <Tab title="Messages">
+    ```typescript
+    this.sendReply("Private message to user");
+    this.sendReplyBox("HTML message to user");
+    this.add("Message to room");
+    this.privateModAction("Visible only to staff");
+    this.modlog('ACTION', targetUser, note);
+    this.errorReply("Error message");
+    ```
+  </Tab>
+  
+  <Tab title="Parsing">
+    ```typescript
+    const [arg1, arg2] = this.splitOne(target);
+    const args = target.split(',').map(x => x.trim());
+    const userid = toID(username);
+    
+    // Parse as different command
+    this.parse('/help mycommand');
+    this.run('othercommand');
+    ```
+  </Tab>
+  
+  <Tab title="HTML">
+    ```typescript
+    const html = Chat.html`<strong>${userInput}</strong>`;
+    const escaped = Utils.escapeHTML(userInput);
+    const formatted = Chat.formatText(markdown);
+    ```
+  </Tab>
+  
+  <Tab title="Broadcast">
+    ```typescript
+    // Allow broadcasting with ! prefix
+    this.runBroadcast();
+    this.sendReplyBox("Broadcasted HTML");
+    
+    // Custom broadcast permission
+    if (!this.runBroadcast('!show')) return;
+    ```
+  </Tab>
+</Tabs>
+
+## Page Handlers
+
+Create custom HTML pages:
+
+```typescript
+export const pages: Chat.PageTable = {
+  mypage(args, user, connection) {
+    // Permission check
+    this.checkCan('show');
+    
+    const room = this.requireRoom();
+    
+    // Generate HTML
+    let html = `<div class="pad"><h2>My Page</h2>`;
+    html += `<p>Welcome, ${user.name}!</p>`;
+    html += `</div>`;
+    
+    return html;
+  },
+};
+
+// Access via:
+// /view-mypage
+// Or link: <<mypage>>
+```
+
+## Room Settings
+
+Store plugin data in room settings:
+
+```typescript
+// Define settings type
+interface MySettings {
+  enabled: boolean;
+  value: number;
+}
+
+declare module '../rooms' {
+  interface RoomSettings {
+    myplugin?: MySettings;
+  }
+}
+
+// Use in commands
+export const commands: Chat.ChatCommands = {
+  enable(target, room, user) {
+    room = this.requireRoom();
+    this.checkCan('show', null, room);
+    
+    if (!room.settings.myplugin) {
+      room.settings.myplugin = { enabled: false, value: 0 };
+    }
+    
+    room.settings.myplugin.enabled = true;
+    room.saveSettings();
+    
+    return this.sendReply("Plugin enabled.");
+  },
+};
+```
+
+## Storage
+
+Persist data to files:
+
+```typescript
+import { FS } from '../../lib';
+
+const STORAGE_PATH = 'config/chat-plugins/mydata.json';
+
+interface MyData {
+  users: { [userid: string]: number };
+}
+
+const data: MyData = JSON.parse(
+  FS(STORAGE_PATH).readIfExistsSync() || '{"users":{}}'
+);
+
+function save() {
+  FS(STORAGE_PATH).writeUpdate(() => JSON.stringify(data));
+}
+
+// Use in commands
+export const commands: Chat.ChatCommands = {
+  setdata(target, room, user) {
+    data.users[user.id] = parseInt(target);
+    save();
+    return this.sendReply("Data saved.");
+  },
+};
+```
+
+## Testing Plugins
+
+<Steps>
+  <Step title="Hot Reload">
+    Use `/hotpatch chat` to reload plugins without restarting:
+    
+    ```text
+    /hotpatch chat
+    ```
+  </Step>
+  
+  <Step title="Test Commands">
+    Test your commands in a test room:
+    
+    ```text
+    /join testroom
+    /mycommand test arguments
+    ```
+  </Step>
+  
+  <Step title="Check Logs">
+    Monitor server logs for errors:
+    
+    ```bash
+    tail -f logs/chat.txt
+    ```
+  </Step>
+</Steps>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Input" icon="check">
+    Always validate and sanitize user input
+  </Card>
+  
+  <Card title="Check Permissions" icon="shield">
+    Use appropriate permission checks
+  </Card>
+  
+  <Card title="Provide Help" icon="question">
+    Add help text for all commands
+  </Card>
+  
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Use Chat.ErrorMessage for user errors
+  </Card>
+  
+  <Card title="Log Actions" icon="list">
+    Add modlog entries for moderation actions
+  </Card>
+  
+  <Card title="Test Thoroughly" icon="vial">
+    Test edge cases and error conditions
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card title="Chat Plugins Directory" icon="folder" href="https://github.com/smogon/pokemon-showdown/tree/master/server/chat-plugins">
+    Browse existing chat plugins
+  </Card>
+  
+  <Card title="Chat Source" icon="file-code" href="https://github.com/smogon/pokemon-showdown/blob/master/server/chat.ts">
+    Chat system implementation
+  </Card>
+  
+  <Card title="Room Source" icon="file-code" href="https://github.com/smogon/pokemon-showdown/blob/master/server/rooms.ts">
+    Room system implementation
+  </Card>
+  
+  <Card title="User Source" icon="file-code" href="https://github.com/smogon/pokemon-showdown/blob/master/server/users.ts">
+    User system implementation
+  </Card>
+</CardGroup>

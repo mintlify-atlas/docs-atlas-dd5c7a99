@@ -1,0 +1,612 @@
+---
+title: 'Moves API'
+description: 'Access Pokemon move data including damage, accuracy, effects, and battle mechanics'
+---
+
+# Moves API
+
+The `DexMoves` API provides access to comprehensive move data including base power, accuracy, type, effects, and battle mechanics. Access it through `Dex.moves`.
+
+## Getting Move Data
+
+```typescript
+import { Dex } from './sim/dex';
+
+// Get a move by name
+const thunderbolt = Dex.moves.get('Thunderbolt');
+console.log(thunderbolt.basePower); // 90
+console.log(thunderbolt.accuracy); // 100
+console.log(thunderbolt.type); // 'Electric'
+
+// Get all moves
+const allMoves = Dex.moves.all();
+console.log(allMoves.length); // 919 (in Gen 9)
+```
+
+## Methods
+
+### get()
+
+```typescript
+Dex.moves.get(name?: string | Move): Move
+```
+
+Retrieves move data by name or returns the move if already a Move object.
+
+<ParamField path="name" type="string | Move">
+  Move name (case-insensitive, spaces optional) or an existing Move object.
+</ParamField>
+
+<ResponseField name="return" type="Move">
+  A readonly Move object with all move properties. Returns an empty move with `exists: false` if not found.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const move = Dex.moves.get('Dragon Dance');
+console.log(move.id); // 'dragondance'
+console.log(move.name); // 'Dragon Dance'
+console.log(move.exists); // true
+
+const invalid = Dex.moves.get('Not A Move');
+console.log(invalid.exists); // false
+```
+
+### getByID()
+
+```typescript
+Dex.moves.getByID(id: ID): Move
+```
+
+Retrieves move data by ID (lowercase, no spaces).
+
+<ParamField path="id" type="ID">
+  Move ID in lowercase alphanumeric format.
+</ParamField>
+
+<ResponseField name="return" type="Move">
+  A readonly Move object.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const move = Dex.moves.getByID('thunderbolt' as ID);
+console.log(move.basePower); // 90
+```
+
+### all()
+
+```typescript
+Dex.moves.all(): readonly Move[]
+```
+
+Returns an array of all moves in the current generation/mod.
+
+<ResponseField name="return" type="readonly Move[]">
+  Array of all Move objects, including nonstandard moves.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const allMoves = Dex.moves.all();
+const damaging = allMoves.filter(m => m.category !== 'Status' && m.basePower > 0);
+console.log(`${damaging.length} damaging moves`);
+```
+
+## Move Properties
+
+### Basic Properties
+
+<ParamField path="id" type="ID">
+  Unique identifier (lowercase, no spaces).
+</ParamField>
+
+<ParamField path="name" type="string">
+  Display name of the move.
+</ParamField>
+
+<ParamField path="num" type="number">
+  Move index number (used for Metronome rolls).
+</ParamField>
+
+<ParamField path="type" type="string">
+  Move type (e.g., 'Fire', 'Water', 'Normal').
+</ParamField>
+
+<ParamField path="basePower" type="number">
+  Base power of the move. `0` for status moves.
+</ParamField>
+
+<ParamField path="accuracy" type="true | number">
+  Accuracy percentage (1-100), or `true` for moves that always hit.
+</ParamField>
+
+<ParamField path="pp" type="number">
+  Base PP (Power Points) of the move.
+</ParamField>
+
+<ParamField path="category" type="'Physical' | 'Special' | 'Status'">
+  Damage category of the move.
+</ParamField>
+
+<ParamField path="priority" type="number">
+  Move priority. Positive = higher priority, negative = lower priority, 0 = normal.
+</ParamField>
+
+<ParamField path="target" type="MoveTarget">
+  Valid targets for the move. See [Move Targets](#move-targets) section.
+</ParamField>
+
+**Example:**
+
+```typescript
+const quickAttack = Dex.moves.get('Quick Attack');
+console.log(quickAttack.priority); // 1
+console.log(quickAttack.basePower); // 40
+console.log(quickAttack.category); // 'Physical'
+
+const swift = Dex.moves.get('Swift');
+console.log(swift.accuracy); // true (never misses)
+```
+
+### Move Effects
+
+<ParamField path="secondary" type="SecondaryEffect | null">
+  Primary secondary effect of the move (e.g., burn chance, stat drops).
+</ParamField>
+
+<ParamField path="secondaries" type="SecondaryEffect[] | null">
+  Array of all secondary effects (includes `secondary` if present).
+</ParamField>
+
+<ParamField path="flags" type="MoveFlags">
+  Object containing boolean flags for move properties (contact, protect, etc.).
+</ParamField>
+
+**Example:**
+
+```typescript
+const thunderbolt = Dex.moves.get('Thunderbolt');
+console.log(thunderbolt.secondary?.chance); // 10
+console.log(thunderbolt.secondary?.status); // 'par' (paralysis)
+
+const fireFang = Dex.moves.get('Fire Fang');
+console.log(fireFang.secondaries?.length); // 2 (burn + flinch)
+```
+
+### Move Flags
+
+The `flags` object contains properties indicating special move behaviors:
+
+```typescript
+interface MoveFlags {
+  contact?: 1;          // Makes contact
+  protect?: 1;          // Blocked by Protect
+  mirror?: 1;           // Copied by Mirror Move
+  sound?: 1;            // Sound-based move
+  punch?: 1;            // Boosted by Iron Fist
+  bite?: 1;             // Boosted by Strong Jaw
+  bullet?: 1;           // Blocked by Bulletproof
+  pulse?: 1;            // Boosted by Mega Launcher
+  powder?: 1;           // Powder move (fails vs Grass)
+  defrost?: 1;          // Thaws user
+  distance?: 1;         // Can hit distant targets in Triples
+  heal?: 1;             // Blocked by Heal Block
+  recharge?: 1;         // User must recharge next turn
+  charge?: 1;           // Two-turn move
+  bypasssub?: 1;        // Bypasses Substitute
+  // ... and many more
+}
+```
+
+**Example:**
+
+```typescript
+const thunderPunch = Dex.moves.get('Thunder Punch');
+console.log(thunderPunch.flags.contact); // 1
+console.log(thunderPunch.flags.punch); // 1
+console.log(thunderPunch.flags.protect); // 1
+
+const boomburst = Dex.moves.get('Boomburst');
+console.log(boomburst.flags.sound); // 1
+console.log(boomburst.flags.bypasssub); // 1
+```
+
+### Critical Hits & Accuracy
+
+<ParamField path="critRatio" type="number">
+  Critical hit ratio multiplier. Default is 1. Higher values increase crit chance.
+</ParamField>
+
+<ParamField path="willCrit" type="boolean">
+  If true, the move will always crit.
+</ParamField>
+
+<ParamField path="ignoreAccuracy" type="boolean">
+  If true, ignores accuracy checks.
+</ParamField>
+
+<ParamField path="ignoreEvasion" type="boolean">
+  If true, ignores target's evasion boosts.
+</ParamField>
+
+**Example:**
+
+```typescript
+const stoneEdge = Dex.moves.get('Stone Edge');
+console.log(stoneEdge.critRatio); // 2 (high crit ratio)
+
+const frostBreath = Dex.moves.get('Frost Breath');
+console.log(frostBreath.willCrit); // true (always crits)
+```
+
+### Multi-Hit Moves
+
+<ParamField path="multihit" type="number | number[]">
+  Number of hits. Can be a single number or an array representing a range (e.g., `[2, 5]` for 2-5 hits).
+</ParamField>
+
+**Example:**
+
+```typescript
+const doubleKick = Dex.moves.get('Double Kick');
+console.log(doubleKick.multihit); // 2
+
+const bulletSeed = Dex.moves.get('Bullet Seed');
+console.log(bulletSeed.multihit); // [2, 5]
+
+const tripleAxel = Dex.moves.get('Triple Axel');
+console.log(tripleAxel.multihit); // 3
+```
+
+### Recoil & Drain
+
+<ParamField path="recoil" type="[number, number]">
+  Recoil damage as a fraction `[numerator, denominator]`. Example: `[1, 2]` = 50% recoil.
+</ParamField>
+
+<ParamField path="drain" type="[number, number]">
+  HP drain as a fraction. Example: `[1, 2]` = restores 50% of damage dealt.
+</ParamField>
+
+<ParamField path="struggleRecoil" type="boolean">
+  True for Struggle's recoil mechanics.
+</ParamField>
+
+**Example:**
+
+```typescript
+const bravebird = Dex.moves.get('Brave Bird');
+console.log(bravebird.recoil); // [33, 100] (33% recoil)
+
+const gigaDrain = Dex.moves.get('Giga Drain');
+console.log(gigaDrain.drain); // [1, 2] (50% drain)
+```
+
+### Self-Switching
+
+<ParamField path="selfSwitch" type="'copyvolatile' | 'shedtail' | boolean">
+  Indicates if the user switches out after using the move. Special values for U-turn mechanics.
+</ParamField>
+
+**Example:**
+
+```typescript
+const uTurn = Dex.moves.get('U-turn');
+console.log(uTurn.selfSwitch); // true
+
+const voltSwitch = Dex.moves.get('Volt Switch');
+console.log(voltSwitch.selfSwitch); // true
+
+const shedTail = Dex.moves.get('Shed Tail');
+console.log(shedTail.selfSwitch); // 'shedtail'
+```
+
+### Z-Moves
+
+<ParamField path="isZ" type="boolean | string">
+  True if this is a Z-Move, or the Z-Crystal ID that calls it.
+</ParamField>
+
+<ParamField path="zMove" type="object">
+  Z-Move data including base power and stat boosts.
+</ParamField>
+
+**Example:**
+
+```typescript
+const thunderbolt = Dex.moves.get('Thunderbolt');
+console.log(thunderbolt.zMove?.basePower); // 175
+
+const swordsDance = Dex.moves.get('Swords Dance');
+console.log(swordsDance.zMove?.boost); // { atk: 1 }
+```
+
+### Max Moves
+
+<ParamField path="isMax" type="boolean | string">
+  True if this is a Max Move. If it's a G-Max move, contains the Gigantamax species name.
+</ParamField>
+
+<ParamField path="maxMove" type="object">
+  Dynamax move data including base power.
+</ParamField>
+
+**Example:**
+
+```typescript
+const flamethrower = Dex.moves.get('Flamethrower');
+console.log(flamethrower.maxMove?.basePower); // 130
+```
+
+## Move Targets
+
+The `target` property specifies which Pokemon a move can target:
+
+<CodeGroup>
+```typescript Single Target
+'normal'          // One adjacent Pokemon
+'adjacentFoe'     // One adjacent foe
+'adjacentAlly'    // One adjacent ally
+'adjacentAllyOrSelf' // User or adjacent ally
+'any'             // Any Pokemon on the field
+'randomNormal'    // Random adjacent foe
+```
+
+```typescript Multiple Targets
+'allAdjacent'     // All adjacent Pokemon
+'allAdjacentFoes' // All adjacent foes
+'allies'          // All active allies
+'allySide'        // User's side (side condition)
+'foeSide'         // Foe's side (side condition)
+'all'             // Entire field
+```
+
+```typescript Self Target
+'self'            // Only the user
+'scripted'        // Specific target (Counter, Mirror Coat)
+'allyTeam'        // All unfainted team members
+```
+</CodeGroup>
+
+**Example:**
+
+```typescript
+const earthquake = Dex.moves.get('Earthquake');
+console.log(earthquake.target); // 'allAdjacent'
+
+const reflect = Dex.moves.get('Reflect');
+console.log(reflect.target); // 'allySide'
+
+const healPulse = Dex.moves.get('Heal Pulse');
+console.log(healPulse.target); // 'any'
+```
+
+## Secondary Effects
+
+Secondary effects include stat changes, status conditions, and other effects:
+
+```typescript
+interface SecondaryEffect {
+  chance?: number;              // Chance to occur (percentage)
+  status?: string;              // Status to inflict
+  volatileStatus?: string;      // Volatile status to inflict
+  boosts?: SparseBoostsTable;  // Stat changes
+  self?: HitEffect;            // Effect on user
+  // ... field/side conditions
+}
+```
+
+**Example:**
+
+```typescript
+// Move with burn chance
+const flamethrower = Dex.moves.get('Flamethrower');
+console.log(flamethrower.secondary?.chance); // 10
+console.log(flamethrower.secondary?.status); // 'brn'
+
+// Move with stat drops
+const iceBeam = Dex.moves.get('Ice Beam');
+console.log(iceBeam.secondary?.chance); // 10
+console.log(iceBeam.secondary?.status); // 'frz'
+
+// Move with self-boost
+const powerUpPunch = Dex.moves.get('Power-Up Punch');
+console.log(powerUpPunch.secondary?.chance); // 100
+console.log(powerUpPunch.secondary?.self?.boosts); // { atk: 1 }
+```
+
+## Filtering Moves
+
+```typescript
+// Get all Physical Fire-type moves
+const physicalFire = Dex.moves.all().filter(move => 
+  move.type === 'Fire' && 
+  move.category === 'Physical' &&
+  move.basePower > 0
+);
+
+// Get all priority moves
+const priorityMoves = Dex.moves.all().filter(move => 
+  move.priority > 0
+);
+
+// Get all sound-based moves
+const soundMoves = Dex.moves.all().filter(move => 
+  move.flags.sound
+);
+
+// Get all moves that make contact
+const contactMoves = Dex.moves.all().filter(move => 
+  move.flags.contact
+);
+```
+
+## Generation Differences
+
+```typescript
+// Gen 1 Tackle had 35 base power
+const gen1Tackle = Dex.mod('gen1').moves.get('Tackle');
+console.log(gen1Tackle.basePower); // 35
+
+// Current gen Tackle has 40 base power
+const tackle = Dex.moves.get('Tackle');
+console.log(tackle.basePower); // 40
+
+// Pursuit was removed in Gen 8
+const gen7Pursuit = Dex.mod('gen7').moves.get('Pursuit');
+console.log(gen7Pursuit.exists); // true
+
+const gen8Pursuit = Dex.mod('gen8').moves.get('Pursuit');
+console.log(gen8Pursuit.isNonstandard); // 'Past'
+```
+
+## Advanced Properties
+
+### Stat Override
+
+<ParamField path="overrideOffensiveStat" type="'atk' | 'def' | 'spa' | 'spd' | 'spe'">
+  Uses a different stat for damage calculation (e.g., Psyshock uses Def instead of SpD).
+</ParamField>
+
+<ParamField path="overrideDefensiveStat" type="'atk' | 'def' | 'spa' | 'spd' | 'spe'">
+  Target uses a different stat for defense.
+</ParamField>
+
+**Example:**
+
+```typescript
+const psyshock = Dex.moves.get('Psyshock');
+console.log(psyshock.category); // 'Special'
+console.log(psyshock.overrideDefensiveStat); // 'def' (uses Defense, not Sp. Def)
+
+const bodyPress = Dex.moves.get('Body Press');
+console.log(bodyPress.category); // 'Physical'
+console.log(bodyPress.overrideOffensiveStat); // 'def' (uses Defense for attack)
+```
+
+### Ignore Boosts
+
+<ParamField path="ignoreOffensive" type="boolean">
+  Ignores the user's offensive stat boosts.
+</ParamField>
+
+<ParamField path="ignoreDefensive" type="boolean">
+  Ignores the target's defensive stat boosts.
+</ParamField>
+
+<ParamField path="ignoreNegativeOffensive" type="boolean">
+  Ignores negative offensive stat boosts (Chip Away, Sacred Sword).
+</ParamField>
+
+<ParamField path="ignorePositiveDefensive" type="boolean">
+  Ignores positive defensive stat boosts.
+</ParamField>
+
+**Example:**
+
+```typescript
+const sacredSword = Dex.moves.get('Sacred Sword');
+console.log(sacredSword.ignoreDefensive); // true
+
+const chipAway = Dex.moves.get('Chip Away');
+console.log(chipAway.ignorePositiveDefensive); // true
+```
+
+## Complete Example
+
+```typescript
+import { Dex } from './sim/dex';
+
+// Analyze a move's properties
+function analyzeMovepower(moveName: string) {
+  const move = Dex.moves.get(moveName);
+  
+  if (!move.exists) {
+    console.log(`Move "${moveName}" not found`);
+    return;
+  }
+  
+  console.log(`=== ${move.name} ===`);
+  console.log(`Type: ${move.type}`);
+  console.log(`Category: ${move.category}`);
+  console.log(`Base Power: ${move.basePower}`);
+  console.log(`Accuracy: ${move.accuracy === true ? 'Never misses' : move.accuracy}`);
+  console.log(`PP: ${move.pp}`);
+  console.log(`Priority: ${move.priority}`);
+  console.log(`Target: ${move.target}`);
+  
+  if (move.flags.contact) console.log('- Makes contact');
+  if (move.flags.protect) console.log('- Blocked by Protect');
+  if (move.flags.sound) console.log('- Sound-based');
+  
+  if (move.secondary) {
+    console.log(`Secondary (${move.secondary.chance}% chance):`);
+    if (move.secondary.status) console.log(`  - Inflicts ${move.secondary.status}`);
+    if (move.secondary.boosts) console.log(`  - Boosts:`, move.secondary.boosts);
+  }
+  
+  if (move.multihit) {
+    const hits = Array.isArray(move.multihit) 
+      ? `${move.multihit[0]}-${move.multihit[1]}` 
+      : move.multihit;
+    console.log(`Hits: ${hits} times`);
+  }
+}
+
+analyzeMovepower('Thunderbolt');
+analyzeMovepower('Dragon Dance');
+analyzeMovepower('Bullet Seed');
+```
+
+## Type Definitions
+
+```typescript
+interface Move {
+  readonly id: ID;
+  readonly name: string;
+  readonly num: number;
+  readonly type: string;
+  readonly basePower: number;
+  readonly accuracy: true | number;
+  readonly pp: number;
+  readonly category: 'Physical' | 'Special' | 'Status';
+  readonly priority: number;
+  readonly target: MoveTarget;
+  readonly flags: MoveFlags;
+  readonly secondary: SecondaryEffect | null;
+  readonly secondaries: SecondaryEffect[] | null;
+  readonly exists: boolean;
+  readonly isNonstandard: string | null;
+  readonly gen: number;
+  // ... many more properties
+}
+
+interface ActiveMove extends Move {
+  hit: number;
+  // ... additional mutable properties for battle state
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Dex API" icon="book" href="/api/dex">
+    Main Dex interface and utility methods
+  </Card>
+  
+  <Card title="Species API" icon="dragon" href="/api/species">
+    Pokemon species and learnset data
+  </Card>
+  
+  <Card title="Abilities API" icon="sparkles" href="/api/abilities">
+    Ability effects and interactions
+  </Card>
+  
+  <Card title="Items API" icon="gem" href="/api/items">
+    Item data and held item effects
+  </Card>
+</CardGroup>

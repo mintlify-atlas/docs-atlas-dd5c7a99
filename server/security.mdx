@@ -1,0 +1,583 @@
+---
+title: 'Server Security'
+description: 'Best practices for securing your Pokemon Showdown server in production'
+icon: 'shield'
+---
+
+## Security Overview
+
+Running a public Pokemon Showdown server requires careful attention to security. This guide covers essential security practices to protect your server and users.
+
+<Warning>
+  Security is an ongoing process. Regularly update your server, monitor logs, and stay informed about new security threats.
+</Warning>
+
+## Production Checklist
+
+Before running your server in production, verify these critical security settings:
+
+<Steps>
+  <Step title="Disable Development Features">
+    Ensure development-only features are disabled:
+
+    ```javascript config/config.js
+    exports.noguestsecurity = false;  // MUST be false
+    exports.nothrottle = false;       // MUST be false
+    exports.noipchecks = false;       // MUST be false
+    ```
+
+    <Warning>
+      **NEVER** enable `noguestsecurity` in production. It allows anyone to impersonate any user without authentication.
+    </Warning>
+  </Step>
+
+  <Step title="Restrict Console Access">
+    Limit developer console access to localhost only:
+
+    ```javascript config/config.js
+    exports.consoleips = ['127.0.0.1'];
+    ```
+
+    Or disable it entirely:
+
+    ```javascript config/config.js
+    exports.consoleips = [];
+    ```
+  </Step>
+
+  <Step title="Review Backdoor Setting">
+    Decide whether to allow Pokemon Showdown system operators access:
+
+    ```javascript config/config.js
+    exports.backdoor = false;  // Set to false if you don't trust PS operators
+    ```
+
+    <Note>
+      The backdoor allows Pokemon Showdown developers to help with technical support but gives them full admin access.
+    </Note>
+  </Step>
+
+  <Step title="Enable Crash Guard">
+    Configure error handling and alerting:
+
+    ```javascript config/config.js
+    exports.crashguard = true;
+    ```
+
+    Consider setting up email alerts:
+
+    ```javascript config/config.js
+    exports.crashguardemail = {
+      options: {
+        host: 'mail.example.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: 'alerts@example.com',
+          pass: 'secure-password'
+        }
+      },
+      from: 'server@example.com',
+      to: 'admin@example.com',
+      subject: 'Pokemon Showdown Crash Alert'
+    };
+    ```
+  </Step>
+</Steps>
+
+## Network Security
+
+### HTTPS/SSL Configuration
+
+Always use HTTPS in production to encrypt traffic:
+
+```javascript config/config.js
+exports.ssl = {
+  port: 443,
+  options: {
+    key: './config/ssl/privkey.pem',
+    cert: './config/ssl/fullchain.pem',
+  },
+};
+```
+
+<Note>
+  The Pokemon Showdown client requires port 443 for SSL connections. Use Let's Encrypt for free SSL certificates.
+</Note>
+
+### Let's Encrypt Setup
+
+<Steps>
+  <Step title="Install Certbot">
+    ```bash
+    sudo apt-get update
+    sudo apt-get install certbot
+    ```
+  </Step>
+
+  <Step title="Obtain Certificate">
+    ```bash
+    sudo certbot certonly --standalone -d yourdomain.com
+    ```
+  </Step>
+
+  <Step title="Configure Auto-Renewal">
+    Create a renewal hook script:
+
+    ```bash deploy-ssl.sh
+    #!/bin/bash
+    cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ~/Pokemon-Showdown/config/ssl/
+    cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ~/Pokemon-Showdown/config/ssl/
+    chown showdown:showdown ~/Pokemon-Showdown/config/ssl/*.pem
+    chmod 600 ~/Pokemon-Showdown/config/ssl/*.pem
+    ```
+
+    Add to certbot renewal:
+
+    ```bash
+    sudo certbot renew --deploy-hook /path/to/deploy-ssl.sh
+    ```
+  </Step>
+</Steps>
+
+### Reverse Proxy
+
+Consider using a reverse proxy like nginx for additional security:
+
+```nginx nginx.conf
+upstream showdown {
+    server 127.0.0.1:8000;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    location / {
+        proxy_pass http://showdown;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+If using a reverse proxy, configure trusted proxy IPs:
+
+```javascript config/config.js
+exports.proxyip = ['127.0.0.1'];
+```
+
+### Firewall Configuration
+
+Use a firewall to restrict access:
+
+```bash ufw
+# Allow SSH
+sudo ufw allow 22/tcp
+
+# Allow HTTP/HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Allow your Pokemon Showdown port (if not using reverse proxy)
+sudo ufw allow 8000/tcp
+
+# Enable firewall
+sudo ufw enable
+```
+
+## Access Control
+
+### Administrator Privileges
+
+<CardGroup cols={2}>
+  <Card title="Minimal Admins" icon="users-slash">
+    Only grant Administrator (~) rank to the server owner and highly trusted individuals.
+  </Card>
+  <Card title="Console Restriction" icon="terminal">
+    Never give console permission to anyone except the server owner. Console allows arbitrary code execution.
+  </Card>
+  <Card title="Regular Audits" icon="clipboard-check">
+    Periodically review `config/usergroups.csv` and remove inactive admins.
+  </Card>
+  <Card title="Secure Credentials" icon="key">
+    Ensure all admin accounts use strong, unique passwords.
+  </Card>
+</CardGroup>
+
+### Permission Hierarchy
+
+Follow the principle of least privilege:
+
+1. **Administrators (~)** - Server owner only
+2. **Moderators (@)** - Highly trusted, experienced staff
+3. **Drivers (%)** - Active, trustworthy moderators
+4. **Voice (+)** - Trusted community members
+5. **Regular users** - Everyone else
+
+### Console Access
+
+The developer console is the most dangerous feature:
+
+```javascript config/config.js
+// Best practice: localhost only
+exports.consoleips = ['127.0.0.1'];
+
+// Alternative: disable entirely
+exports.consoleips = [];
+
+// NEVER do this in production:
+exports.consoleips = ['0.0.0.0/0'];  // ❌ UNSAFE
+```
+
+<Warning>
+  Console access allows execution of arbitrary JavaScript code with full system privileges. A compromised console account can:
+  - Read/write any file
+  - Access the database
+  - Execute system commands
+  - Steal user data
+</Warning>
+
+## User Security
+
+### Anti-Abuse Features
+
+Enable security features to combat abuse:
+
+```javascript config/config.js
+// Restrict link sharing to autoconfirmed users
+exports.restrictLinks = true;
+
+// Monitor users with multiple punishments
+exports.monitorminpunishments = 3;
+exports.punishmentautolock = true;
+
+// Enable name filtering
+exports.disablebasicnamefilter = false;
+
+// Enable all throttles and checks
+exports.nothrottle = false;
+exports.noipchecks = false;
+```
+
+### Rate Limiting
+
+Throttles prevent abuse and DoS attacks:
+
+- Rename throttling (prevent rapid name changes)
+- Chat message throttling (prevent spam)
+- Challenge throttling (prevent harassment)
+- Ladder search throttling (prevent abuse)
+
+<Warning>
+  Never disable throttles (`nothrottle = true`) in production. They're essential for preventing abuse.
+</Warning>
+
+### IP-Based Protection
+
+IP checking helps identify alt accounts and ban evaders:
+
+```javascript config/config.js
+exports.noipchecks = false;  // Keep enabled
+```
+
+Features enabled by IP checking:
+- Alt account detection
+- Ban evasion prevention  
+- Shared IP identification
+- Connection limiting
+
+## Data Protection
+
+### Sensitive Files
+
+Protect sensitive configuration files:
+
+```bash
+chmod 600 config/config.js
+chmod 600 config/usergroups.csv
+chmod 600 config/punishments.tsv
+chmod 600 config/ssl/*.pem
+```
+
+Never commit sensitive files to version control:
+
+```gitignore .gitignore
+config/config.js
+config/usergroups.csv
+config/punishments.tsv
+config/ssl/
+config/*.tsv
+logs/
+*.log
+```
+
+### Logging
+
+Enable comprehensive logging for security auditing:
+
+```javascript config/config.js
+exports.logchat = true;
+exports.logchallenges = true;
+```
+
+Log files to monitor:
+- `logs/chat/` - Chat room logs
+- `logs/modlog/` - Moderation actions
+- `logs/repl/` - Console usage
+- Punishment files
+
+<Note>
+  Regularly review logs for suspicious activity. Archive old logs and implement log rotation.
+</Note>
+
+### Database Security
+
+Pokemon Showdown stores data in TSV files:
+
+```bash
+# Restrict access to data files
+chmod 700 config/
+chmod 600 config/*.tsv
+
+# Regular backups
+tar -czf backup-$(date +%Y%m%d).tar.gz config/ logs/
+```
+
+Backup schedule recommendation:
+- Daily: User groups and punishments
+- Weekly: Full server backup
+- Monthly: Archive backups off-site
+
+## Server Hardening
+
+### System Updates
+
+Keep your system and dependencies updated:
+
+```bash
+# System updates (Ubuntu/Debian)
+sudo apt-get update
+sudo apt-get upgrade
+
+# Node.js updates
+npm install -g n
+n latest
+
+# Pokemon Showdown updates
+cd pokemon-showdown
+git pull
+npm install
+./pokemon-showdown
+```
+
+<Note>
+  Set up automated security updates for your operating system.
+</Note>
+
+### Process Management
+
+Use a process manager to automatically restart crashed servers:
+
+```bash
+# Install PM2
+npm install -g pm2
+
+# Start server with PM2
+pm2 start pokemon-showdown --name showdown
+
+# Configure auto-restart
+pm2 startup
+pm2 save
+```
+
+Example PM2 ecosystem file:
+
+```javascript ecosystem.config.js
+module.exports = {
+  apps: [{
+    name: 'showdown',
+    script: './pokemon-showdown',
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: 'production'
+    },
+    error_file: './logs/pm2-error.log',
+    out_file: './logs/pm2-out.log',
+    time: true
+  }]
+};
+```
+
+### Dedicated User
+
+Run Pokemon Showdown as a dedicated non-root user:
+
+```bash
+# Create dedicated user
+sudo useradd -m -s /bin/bash showdown
+sudo passwd showdown
+
+# Transfer ownership
+sudo chown -R showdown:showdown /home/showdown/pokemon-showdown
+
+# Switch to user
+sudo su - showdown
+```
+
+<Warning>
+  Never run Pokemon Showdown as root. A compromised server could lead to full system compromise.
+</Warning>
+
+## Monitoring
+
+### Server Monitoring
+
+Monitor server health and performance:
+
+```bash
+# Check server status
+pm2 status
+pm2 monit
+
+# View logs
+pm2 logs showdown
+
+# Resource usage
+top
+htop
+```
+
+### Security Monitoring
+
+Watch for suspicious activity:
+
+1. **Failed login attempts** - Monitor authentication failures
+2. **Unusual IP patterns** - Track connections from suspicious IPs
+3. **Privilege escalation** - Log all rank changes
+4. **Console usage** - Audit all console commands
+5. **Punishment patterns** - Identify serial offenders
+
+### Automated Alerts
+
+Set up alerts for critical events:
+
+```javascript config/config.js
+exports.crashguardemail = {
+  // Email configuration for crash alerts
+};
+```
+
+Consider external monitoring services:
+- UptimeRobot - Server availability monitoring
+- Sentry - Error tracking and reporting
+- LogRocket - User session replay
+
+## Incident Response
+
+### Security Breach Protocol
+
+If your server is compromised:
+
+<Steps>
+  <Step title="Immediate Lockdown">
+    ```text
+    /lockdown - Stop all new battles
+    ```
+    
+    Shut down the server once battles complete.
+  </Step>
+
+  <Step title="Assess Damage">
+    - Review console logs
+    - Check moderation logs  
+    - Verify user data integrity
+    - Identify compromised accounts
+  </Step>
+
+  <Step title="Reset Credentials">
+    - Change all admin passwords
+    - Regenerate SSL certificates if needed
+    - Review and update `config/usergroups.csv`
+    - Reset any compromised accounts
+  </Step>
+
+  <Step title="Patch Vulnerability">
+    - Update to latest Pokemon Showdown version
+    - Apply security patches
+    - Review configuration for weaknesses
+    - Implement additional security measures
+  </Step>
+
+  <Step title="Restore Service">
+    - Verify all security measures in place
+    - Restore from clean backup if necessary
+    - Restart server
+    - Monitor closely for further issues
+  </Step>
+
+  <Step title="Post-Incident Review">
+    - Document what happened
+    - Identify root cause
+    - Implement preventive measures
+    - Communicate with users if data was compromised
+  </Step>
+</Steps>
+
+## Security Best Practices Summary
+
+<CardGroup cols={2}>
+  <Card title="Defense in Depth" icon="layer-group">
+    Use multiple security layers: firewall, SSL, authentication, rate limiting
+  </Card>
+  <Card title="Least Privilege" icon="user-lock">
+    Give users and processes only the minimum permissions needed
+  </Card>
+  <Card title="Regular Updates" icon="rotate">
+    Keep all software updated with latest security patches
+  </Card>
+  <Card title="Monitor Everything" icon="eyes">
+    Enable logging and monitoring for all security-relevant events
+  </Card>
+  <Card title="Backup Regularly" icon="floppy-disk">
+    Maintain regular backups and test restoration procedures
+  </Card>
+  <Card title="Security Audits" icon="magnifying-glass">
+    Periodically review security settings and access logs
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+<Card title="Report Security Issues" icon="bug">
+  If you discover a security vulnerability in Pokemon Showdown itself, report it to the development team at:
+  
+  security@pokemonshowdown.com
+  
+  Do not disclose vulnerabilities publicly until they have been patched.
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/server/configuration">
+    Review all configuration options
+  </Card>
+  <Card title="Administration" icon="user-shield" href="/server/administration">
+    Learn user management and moderation
+  </Card>
+</CardGroup>

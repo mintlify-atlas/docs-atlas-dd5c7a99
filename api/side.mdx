@@ -1,0 +1,361 @@
+---
+title: "Side"
+description: "Player side class representing one player in battle"
+icon: "shield"
+---
+
+## Overview
+
+The `Side` class represents one player's side in a Pokemon battle. It manages the player's team, active Pokemon, and side-wide conditions.
+
+```typescript
+// Access sides from battle
+const p1 = battle.p1;
+const p2 = battle.p2;
+```
+
+## Key Properties
+
+### Identity
+
+<ResponseField name="id" type="SideID">
+  Side identifier: 'p1', 'p2', 'p3', or 'p4'
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Player name
+</ResponseField>
+
+<ResponseField name="avatar" type="string">
+  Player avatar identifier
+</ResponseField>
+
+<ResponseField name="n" type="number">
+  Side number (0-3)
+</ResponseField>
+
+<ResponseField name="foe" type="Side">
+  The opposing side (in singles)
+</ResponseField>
+
+<ResponseField name="allySide" type="Side | null">
+  Allied side in doubles/triples
+</ResponseField>
+
+### Team
+
+<ResponseField name="pokemon" type="Pokemon[]">
+  Array of all Pokemon on this side
+</ResponseField>
+
+<ResponseField name="active" type="Pokemon[]">
+  Array of currently active Pokemon (1-3 depending on format)
+</ResponseField>
+
+<ResponseField name="pokemonLeft" type="number">
+  Number of unfainted Pokemon remaining
+</ResponseField>
+
+### Side Conditions
+
+<ResponseField name="sideConditions" type="{[id: string]: any}">
+  Active side conditions (Stealth Rock, Reflect, etc.)
+</ResponseField>
+
+<ResponseField name="slotConditions" type="any[]">
+  Conditions on specific field positions
+</ResponseField>
+
+### Battle State
+
+<ResponseField name="activeRequest" type="ChoiceRequest | null">
+  Current request for player input
+</ResponseField>
+
+<ResponseField name="choice" type="Choice">
+  Parsed player choice
+</ResponseField>
+
+<ResponseField name="lastMove" type="Move | null">
+  Last move used by this side
+</ResponseField>
+
+## Core Methods
+
+### addSideCondition()
+
+Add a side condition like Stealth Rock or Reflect.
+
+```typescript
+side.addSideCondition('stealthrock');
+side.addSideCondition('reflect');
+```
+
+<ParamField path="status" type="string" required>
+  Condition ID
+</ParamField>
+
+<ParamField path="source" type="Pokemon | null">
+  Source Pokemon
+</ParamField>
+
+<ParamField path="effect" type="Effect | null">
+  Causing effect
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if condition was added successfully
+</ResponseField>
+
+### removeSideCondition()
+
+Remove a side condition.
+
+```typescript
+side.removeSideCondition('reflect');
+```
+
+### getSideCondition()
+
+Get data for a specific side condition.
+
+```typescript
+const rocks = side.getSideCondition('stealthrock');
+```
+
+### addSlotCondition()
+
+Add a condition to a specific field position.
+
+```typescript
+side.addSlotCondition(pokemon, 'futuresight', source);
+```
+
+### getChoice()
+
+Get the current parsed choice.
+
+```typescript
+const choice = side.getChoice();
+```
+
+### chooseMove()
+
+Make a move choice.
+
+```typescript
+side.chooseMove('thunderbolt'); // Use move by name
+side.chooseMove(1); // Use move by slot number
+side.chooseMove('move 1 mega'); // Use move and mega evolve
+```
+
+<ParamField path="move" type="string | number" required>
+  Move ID or slot number
+</ParamField>
+
+<ParamField path="targetLoc" type="number">
+  Target location (for doubles/triples)
+</ParamField>
+
+<ParamField path="megaOrZ" type="string">
+  'mega', 'zmove', or 'ultra' for special mechanics
+</ParamField>
+
+### chooseSwitch()
+
+Make a switch choice.
+
+```typescript
+side.chooseSwitch(2); // Switch to Pokemon in slot 2
+```
+
+<ParamField path="slot" type="number | string" required>
+  Target Pokemon slot or species name
+</ParamField>
+
+### chooseTeam()
+
+Choose team order during Team Preview.
+
+```typescript
+side.chooseTeam('123456'); // Reorder team
+```
+
+<ParamField path="team" type="string" required>
+  Team order as a string of positions
+</ParamField>
+
+### chooseShift()
+
+Shift the active Pokemon's position.
+
+```typescript
+side.chooseShift();
+```
+
+### clearChoice()
+
+Clear the pending choice.
+
+```typescript
+side.clearChoice();
+```
+
+## Request Methods
+
+### emitRequest()
+
+Generate and emit a choice request to the player.
+
+```typescript
+side.emitRequest(request);
+```
+
+### getRequestData()
+
+Get data for generating a choice request.
+
+```typescript
+const requestData = side.getRequestData();
+```
+
+### emitChoiceError()
+
+Send an error message about an invalid choice.
+
+```typescript
+side.emitChoiceError('Invalid move selection');
+```
+
+## Utility Methods
+
+### isChoiceDone()
+
+Check if the side has made all required choices.
+
+```typescript
+if (side.isChoiceDone()) {
+  // Ready to proceed
+}
+```
+
+### faintedLastTurn()
+
+Check if a Pokemon fainted last turn.
+
+```typescript
+if (side.faintedLastTurn()) {
+  // Handle faint logic
+}
+```
+
+### faintedThisTurn()
+
+Check if a Pokemon fainted this turn.
+
+```typescript
+if (side.faintedThisTurn()) {
+  // Replacement needed
+}
+```
+
+### getTeamPreviewSort()
+
+Get team preview sort order.
+
+```typescript
+const order = side.getTeamPreviewSort();
+```
+
+### destroy()
+
+Clean up side resources.
+
+```typescript
+side.destroy();
+```
+
+## Choice Request Structure
+
+When a player needs to make a choice, they receive a request:
+
+```typescript
+interface ChoiceRequest {
+  requestType: 'move' | 'switch' | 'team';
+  active?: ActivePokemon[];
+  side?: SidePokemon[];
+  forceSwitch?: boolean[];
+  wait?: boolean;
+}
+
+interface ActivePokemon {
+  moves: MoveOption[];
+  maybeDisabled?: boolean;
+  maybeTrapped?: boolean;
+  canMegaEvo?: boolean;
+  canZMove?: MoveOption[];
+  canDynamax?: boolean;
+}
+
+interface MoveOption {
+  move: string;
+  id: string;
+  pp: number;
+  maxpp: number;
+  target: string;
+  disabled?: boolean | string;
+}
+```
+
+## Example Usage
+
+```typescript
+// Access side
+const side = battle.p1;
+
+console.log(`${side.name}'s team:`);
+for (const pokemon of side.pokemon) {
+  const status = pokemon.fainted ? 'Fainted' : `${pokemon.hp}/${pokemon.maxhp} HP`;
+  console.log(`  ${pokemon.name}: ${status}`);
+}
+
+// Check active Pokemon
+const active = side.active[0];
+if (active) {
+  console.log(`Active: ${active.name}`);
+}
+
+// Check side conditions
+if (side.getSideCondition('stealthrock')) {
+  console.log('Stealth Rock is active');
+}
+
+// Make choices
+if (side.activeRequest) {
+  if (side.activeRequest.requestType === 'move') {
+    side.chooseMove(1); // Use first move
+  } else if (side.activeRequest.requestType === 'switch') {
+    side.chooseSwitch(2); // Switch to second Pokemon
+  }
+}
+
+// Count remaining Pokemon
+console.log(`Pokemon remaining: ${side.pokemonLeft}`);
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Battle" icon="swords" href="/api/battle">
+    Battle class
+  </Card>
+  <Card title="Pokemon" icon="heart" href="/api/pokemon">
+    Pokemon class
+  </Card>
+  <Card title="Choice Requests" icon="question" href="/protocol/choice-requests">
+    Request protocol
+  </Card>
+  <Card title="Battle Protocol" icon="book" href="/protocol/battle-protocol">
+    Battle messages
+  </Card>
+</CardGroup>

@@ -1,0 +1,448 @@
+---
+title: 'Server Commands'
+description: 'Start and configure a Pokemon Showdown server using command-line tools'
+---
+
+## Overview
+
+The Pokemon Showdown CLI provides a `start` command to launch a Pokemon Showdown server. The server can be started on a specified port and supports various configuration options.
+
+## Starting the Server
+
+### Basic Usage
+
+There are three ways to start a Pokemon Showdown server:
+
+<CodeGroup>
+```bash Default Port
+./pokemon-showdown
+```
+
+```bash With Port Number
+./pokemon-showdown 9000
+```
+
+```bash Explicit Start Command
+./pokemon-showdown start 9000
+```
+</CodeGroup>
+
+<Note>
+  If no command is specified, or if the first argument is a number, Pokemon Showdown will start in server mode.
+</Note>
+
+### Port Configuration
+
+The server port can be specified in three ways (in order of precedence):
+
+<Steps>
+  <Step title="Command-line argument">
+    Pass the port number directly:
+    ```bash
+    ./pokemon-showdown start 9000
+    ./pokemon-showdown 9000
+    ```
+  </Step>
+  
+  <Step title="config/config.js setting">
+    Set the port in your configuration file:
+    ```javascript
+    exports.port = 8000;
+    ```
+  </Step>
+  
+  <Step title="Default port">
+    If not specified, the default port is `8000`.
+  </Step>
+</Steps>
+
+## Server Options
+
+### --skip-build
+
+By default, the server automatically runs `./build` before starting to ensure all TypeScript files are compiled. Use `--skip-build` to skip this step:
+
+```bash
+./pokemon-showdown start --skip-build
+./pokemon-showdown start --skip-build 9000
+```
+
+<Warning>
+  Only use `--skip-build` if you're certain your compiled files are up to date. Using stale builds can lead to unexpected behavior.
+</Warning>
+
+**When to use `--skip-build`:**
+- You just ran `./build` manually
+- You're rapidly restarting the server during development
+- You're running in a production environment where builds are handled separately
+
+**When NOT to use `--skip-build`:**
+- After pulling new code from git
+- After making changes to TypeScript files
+- When unsure if the build is current
+
+## Configuration
+
+The server reads its configuration from `config/config.js`. You can configure many aspects of the server behavior.
+
+### Creating a Configuration File
+
+<Steps>
+  <Step title="Copy the example config">
+    ```bash
+    cp config/config-example.js config/config.js
+    ```
+  </Step>
+  
+  <Step title="Edit the configuration">
+    Open `config/config.js` in your editor and modify settings as needed.
+  </Step>
+  
+  <Step title="Start the server">
+    ```bash
+    ./pokemon-showdown start
+    ```
+  </Step>
+</Steps>
+
+### Common Configuration Options
+
+```javascript config/config.js
+// Server port
+exports.port = 8000;
+
+// Server ID (for multi-server setups)
+exports.serverid = 'localhost';
+
+// Server token (for authentication with login server)
+exports.servertoken = '';
+
+// Enable debug mode
+exports.debug = false;
+
+// Maximum concurrent battles
+exports.maxconcurrentbattles = 5;
+
+// Automatically restart on crash
+exports.autorestart = false;
+```
+
+## Server Management
+
+### Starting the Server
+
+```bash
+./pokemon-showdown start
+```
+
+The server will:
+1. Run `./build` to compile TypeScript (unless `--skip-build` is used)
+2. Load configuration from `config/config.js`
+3. Initialize the database and data files
+4. Start listening on the specified port
+5. Connect to the login server (if configured)
+
+### Stopping the Server
+
+To stop a running server:
+
+- Press `Ctrl+C` in the terminal
+- Or send a SIGINT signal: `kill -INT <pid>`
+
+### Restarting After Code Updates
+
+<Steps>
+  <Step title="Pull latest code">
+    ```bash
+    git pull
+    ```
+  </Step>
+  
+  <Step title="Stop the server">
+    Press `Ctrl+C`
+  </Step>
+  
+  <Step title="Rebuild and restart">
+    ```bash
+    ./pokemon-showdown start
+    ```
+    
+    The build will run automatically unless you use `--skip-build`.
+  </Step>
+</Steps>
+
+## Production Deployment
+
+For production environments, consider using a process manager:
+
+### Using PM2
+
+```bash
+# Install PM2
+npm install -g pm2
+
+# Start the server
+pm2 start pokemon-showdown --name "showdown" -- start --skip-build
+
+# View logs
+pm2 logs showdown
+
+# Restart server
+pm2 restart showdown
+
+# Stop server
+pm2 stop showdown
+```
+
+### Using systemd
+
+Create a systemd service file:
+
+```ini /etc/systemd/system/pokemon-showdown.service
+[Unit]
+Description=Pokemon Showdown Server
+After=network.target
+
+[Service]
+Type=simple
+User=showdown
+WorkingDirectory=/home/showdown/pokemon-showdown
+ExecStart=/usr/bin/node pokemon-showdown start --skip-build
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then manage with:
+
+```bash
+# Enable on boot
+sudo systemctl enable pokemon-showdown
+
+# Start server
+sudo systemctl start pokemon-showdown
+
+# Check status
+sudo systemctl status pokemon-showdown
+
+# View logs
+sudo journalctl -u pokemon-showdown -f
+```
+
+### Using Docker
+
+Create a `Dockerfile`:
+
+```dockerfile Dockerfile
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --omit=dev
+
+# Copy source
+COPY . .
+
+# Build
+RUN node build
+
+# Expose port
+EXPOSE 8000
+
+# Start server
+CMD ["node", "pokemon-showdown", "start", "--skip-build"]
+```
+
+Build and run:
+
+```bash
+# Build image
+docker build -t pokemon-showdown .
+
+# Run container
+docker run -d -p 8000:8000 --name showdown pokemon-showdown
+
+# View logs
+docker logs -f showdown
+```
+
+## Environment-Specific Builds
+
+You may need to rebuild when:
+
+- Switching between development and production
+- Deploying to a different architecture
+- After npm package updates
+
+### Force Rebuild
+
+If you encounter build issues:
+
+```bash
+./build --force
+```
+
+This will:
+- Clean all compiled files
+- Reinstall dependencies if needed
+- Rebuild everything from scratch
+
+## Troubleshooting
+
+### Port Already in Use
+
+```
+Error: listen EADDRINUSE: address already in use :::8000
+```
+
+**Solution:** Another process is using the port. Either:
+- Stop the other process
+- Use a different port: `./pokemon-showdown start 9000`
+
+### Build Errors
+
+```
+Error: Cannot find module './dist/server/index.js'
+```
+
+**Solution:** Run the build manually:
+
+```bash
+./build
+./pokemon-showdown start --skip-build
+```
+
+### Node Version Error
+
+```
+We require Node.js version 22 or later; you're using v16.x.x
+```
+
+**Solution:** Update Node.js:
+
+```bash
+# Using nvm
+nvm install 22
+nvm use 22
+
+# Or using your package manager
+sudo apt update
+sudo apt install nodejs
+```
+
+### Permission Denied
+
+```
+Permission denied: ./pokemon-showdown
+```
+
+**Solution:** Make the file executable:
+
+```bash
+chmod +x pokemon-showdown
+```
+
+Or use Node.js directly:
+
+```bash
+node pokemon-showdown start
+```
+
+## Performance Tuning
+
+For high-traffic servers, consider these optimizations:
+
+### Increase Node.js Memory Limit
+
+```bash
+node --max-old-space-size=4096 pokemon-showdown start
+```
+
+### Enable Cluster Mode
+
+In `config/config.js`:
+
+```javascript
+// Use multiple CPU cores
+exports.workers = require('os').cpus().length;
+```
+
+### Configure Battle Limits
+
+```javascript
+// Maximum battles per worker
+exports.maxconcurrentbattles = 10;
+
+// Battle timeout (in seconds)
+exports.battlemaxtimeout = 300;
+```
+
+## Security Considerations
+
+<Warning>
+  When running a public server, ensure you:
+  - Keep the server software up to date
+  - Configure firewall rules appropriately
+  - Use HTTPS/WSS for encrypted connections
+  - Implement rate limiting
+  - Configure authentication properly
+</Warning>
+
+### Firewall Configuration
+
+```bash
+# Allow server port
+sudo ufw allow 8000/tcp
+
+# Enable firewall
+sudo ufw enable
+```
+
+### Reverse Proxy Setup
+
+For HTTPS support, use nginx or Apache as a reverse proxy:
+
+```nginx nginx.conf
+server {
+    listen 443 ssl http2;
+    server_name showdown.example.com;
+    
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Server Documentation" icon="book" href="/server/overview">
+    Comprehensive guide to running a Pokemon Showdown server
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/server/configuration">
+    Detailed configuration options and settings
+  </Card>
+  
+  <Card title="Battle Simulator" icon="swords" href="/cli/simulate-battle">
+    Use the command-line battle simulator
+  </Card>
+  
+  <Card title="Deployment Guide" icon="cloud" href="/server/deployment">
+    Deploy Pokemon Showdown to production
+  </Card>
+</CardGroup>

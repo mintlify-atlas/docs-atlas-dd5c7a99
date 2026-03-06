@@ -1,0 +1,223 @@
+---
+title: 'Server Installation'
+description: 'Install and run your own Pokemon Showdown server'
+icon: 'download'
+---
+
+## System Requirements
+
+Pokemon Showdown requires Node.js to run. Make sure you have the correct version installed before proceeding.
+
+<Note>
+  Pokemon Showdown requires **Node.js v22 or later** for full compatibility. Earlier versions may not work correctly.
+</Note>
+
+### Check Your Node.js Version
+
+Verify your Node.js installation:
+
+```bash
+node --version
+```
+
+If you need to upgrade Node.js, you can use the `n` package manager:
+
+```bash
+npm install --global n
+n latest
+```
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    Download Pokemon Showdown from GitHub:
+
+    ```bash
+    git clone https://github.com/smogon/pokemon-showdown.git
+    cd pokemon-showdown
+    ```
+
+    <Note>
+      Using Git is recommended over downloading a ZIP file, as it makes updating your server much easier with the `/updateserver` command.
+    </Note>
+  </Step>
+
+  <Step title="Create Configuration File">
+    Copy the example configuration to create your server config:
+
+    ```bash
+    cp config/config-example.js config/config.js
+    ```
+
+    You can edit `config/config.js` to customize your server settings. See the [Configuration](/server/configuration) guide for details.
+  </Step>
+
+  <Step title="Build and Start the Server">
+    Start Pokemon Showdown using the startup script:
+
+    ```bash
+    ./pokemon-showdown
+    ```
+
+    Or on Windows:
+
+    ```bash
+    node pokemon-showdown
+    ```
+
+    The server will automatically build required files on first run.
+  </Step>
+</Steps>
+
+## Starting the Server
+
+Pokemon Showdown can be started with several options:
+
+### Default Start
+
+```bash
+./pokemon-showdown
+```
+
+This starts the server on the default port (8000) specified in your config.
+
+### Custom Port
+
+Start on a specific port:
+
+```bash
+./pokemon-showdown 9000
+```
+
+Or:
+
+```bash
+node pokemon-showdown 9000
+```
+
+### Skip Build
+
+Skip the build process if you know your files are up to date:
+
+```bash
+./pokemon-showdown start --skip-build
+```
+
+## Accessing Your Server
+
+Once your server is running, you can access it through your browser:
+
+<CardGroup cols={2}>
+  <Card title="Local Access" icon="computer">
+    Visit `http://localhost:8000` to connect from the same machine running the server.
+  </Card>
+  <Card title="Remote Access" icon="globe">
+    Visit `http://YOUR-IP:8000` where YOUR-IP is your server's public IP address.
+  </Card>
+</CardGroup>
+
+<Warning>
+  Your server will be redirected to `http://SERVER.insecure.psim.us` for shared account login functionality. The `insecure.psim.us` subdomain is used for servers without HTTPS certificates.
+</Warning>
+
+## Network Configuration
+
+### Port Forwarding
+
+For users to connect to your server from outside your local network, you'll need to forward the server port (default 8000) through your router.
+
+<Note>
+  Some internet service providers block server hosting entirely. In this case, you'll need to rent a VPS (Virtual Private Server) to host your server.
+</Note>
+
+### Windows Git Requirements
+
+If you're on Windows, you may need to link Git's UNIX commands to your PATH to build Pokemon Showdown:
+
+- See [Git for Windows FAQ](https://github.com/git-for-windows/git/wiki/FAQ#running-without-git-bash) for instructions
+
+## Testing Your Installation
+
+You can test your server locally even if you're behind a NAT without port forwarding:
+
+1. Start your server
+2. Visit `http://localhost:8000` in your browser
+3. You should see the Pokemon Showdown client interface
+
+<Note>
+  Some browser security setups (like NoScript) might prevent local connections. If Firefox doesn't work, try Chrome.
+</Note>
+
+## Command Line Interface
+
+The `pokemon-showdown` executable supports several commands:
+
+<CodeGroup>
+```bash Start Server
+./pokemon-showdown start
+```
+
+```bash Generate Team
+./pokemon-showdown generate-team [FORMAT-ID] [SEED]
+```
+
+```bash Validate Team
+./pokemon-showdown validate-team [FORMAT-ID] < team.txt
+```
+
+```bash Simulate Battle
+./pokemon-showdown simulate-battle < input.txt
+```
+</CodeGroup>
+
+### CLI Options
+
+- `--skip-build` - Skip the TypeScript build process
+- `--help` or `-h` - Display help information
+- `--debug` or `-D` - Enable debug mode for battle simulation
+- `--replay` or `-R` - Enable replay mode
+- `--spectate` or `-S` - Enable spectator mode
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/server/configuration">
+    Customize your server settings, ports, and features
+  </Card>
+  <Card title="Administration" icon="user-shield" href="/server/administration">
+    Set up administrator accounts and manage users
+  </Card>
+  <Card title="Security" icon="shield" href="/server/security">
+    Secure your server for production deployment
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Node.js Version Errors
+
+If you see an error about Node.js version:
+
+```
+We require Node.js version 22 or later; you're using vX.X.X
+```
+
+Upgrade your Node.js installation using the steps in [System Requirements](#system-requirements).
+
+### Build Errors
+
+If the build fails, try:
+
+1. Delete the `node_modules` and `dist` directories
+2. Run `npm install`
+3. Try starting the server again
+
+### Connection Issues
+
+If you can't connect to your server:
+
+1. Verify the server is running (check terminal output)
+2. Confirm you're using the correct port
+3. Check firewall settings
+4. Verify port forwarding if accessing remotely

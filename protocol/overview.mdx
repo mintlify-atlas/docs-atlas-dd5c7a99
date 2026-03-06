@@ -1,0 +1,160 @@
+---
+title: Protocol Overview
+description: Introduction to Pokémon Showdown's communication protocol
+---
+
+Pokémon Showdown's protocol is a newline-and-pipe-delimited text stream that enables communication between clients and servers, as well as battle simulation.
+
+## Connection Methods
+
+Pokémon Showdown is implemented using SockJS, a compatibility layer over raw WebSocket. You can connect directly using WebSocket:
+
+```text
+ws://sim.smogon.com:8000/showdown/websocket
+```
+
+or with SSL:
+
+```text
+wss://sim3.psim.us/showdown/websocket
+```
+
+## Protocol Structure
+
+<CardGroup cols={2}>
+  <Card title="Client-to-Server" icon="arrow-up">
+    Messages sent from clients to the server follow a simple `ROOMID|TEXT` format
+  </Card>
+  <Card title="Server-to-Client" icon="arrow-down">
+    Messages from the server include room identifiers and pipe-delimited data blocks
+  </Card>
+  <Card title="Battle Protocol" icon="swords">
+    Battle-specific messages use a specialized format for game state updates
+  </Card>
+  <Card title="Choice Requests" icon="hand-pointer">
+    JSON-based requests for player decisions during battles
+  </Card>
+</CardGroup>
+
+## Message Format Basics
+
+### Server Messages
+
+Server-to-client messages follow this structure:
+
+```text
+>ROOMID
+MESSAGE
+MESSAGE
+MESSAGE
+...
+```
+
+<Note>
+The `>ROOMID` line can be omitted if the room is lobby or global. Empty lines should be ignored.
+</Note>
+
+Most messages start with `|` and follow the pattern:
+
+```text
+|TYPE|DATA
+```
+
+### Client Messages
+
+Messages from clients to the server use:
+
+```text
+ROOMID|TEXT
+```
+
+<Note>
+`ROOMID` can be left blank if unneeded. Responses will be sent to a PM box with no username.
+</Note>
+
+`TEXT` can contain newlines, which will be treated as if each line were sent separately.
+
+## Message Type Abbreviations
+
+For bandwidth efficiency, five common message types are abbreviated:
+
+| Full Type | Abbreviated | Description |
+|-----------|-------------|-------------|
+| `chat` | `c` | Chat messages |
+| `join` | `j` | User joined |
+| `leave` | `l` | User left |
+| `name` | `n` | Name change |
+| `battle` | `b` | Battle started |
+
+<Warning>
+Uppercase versions (`J`, `L`, `N`, `B`) indicate high-frequency events that clients may want to suppress from inline display.
+</Warning>
+
+## Example Message Flow
+
+Here's what a typical chat room interaction looks like:
+
+```text
+|j| Some dude
+|c|@Moderator|hi!
+|c| Some dude|you suck and i hate you!
+Some dude was banned by Moderator.
+|l| Some dude
+|b|battle-ou-12| Cool guy|@Moderator
+```
+
+This might be displayed as:
+
+```text
+Some dude joined.
+@Moderator: hi!
+Some dude: you suck and i hate you!
+Some dude was banned by Moderator.
+Some dude left.
+OU battle started between Cool guy and Moderator
+```
+
+## Debugging
+
+The official client logs protocol messages in the JavaScript console (F12 in most browsers), which helps understand what's happening during gameplay.
+
+## Client Implementations
+
+Reference implementations are available in multiple languages:
+
+<CardGroup cols={2}>
+  <Card title="Official Client" icon="globe">
+    HTML5 + JavaScript implementation
+    
+    [View on GitHub](https://github.com/smogon/pokemon-showdown-client)
+  </Card>
+  <Card title="Android Client" icon="mobile">
+    Kotlin/Java implementation by Majeur
+    
+    [View on GitHub](https://github.com/MajeurAndroid/Android-Unofficial-Showdown-Client)
+  </Card>
+  <Card title="Node.js Bot" icon="robot">
+    Chat bot by Quinella and TalkTakesTime
+    
+    [View on GitHub](https://github.com/TalkTakesTime/Pokemon-Showdown-Bot)
+  </Card>
+  <Card title="Ruby Bot" icon="gem">
+    Chat bot by pickdenis
+    
+    [View on GitHub](https://github.com/pickdenis/ps-chatbot)
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Client-Server Messages" href="/protocol/client-server" icon="comments">
+    Learn about room messages, authentication, and server commands
+  </Card>
+  <Card title="Battle Protocol" href="/protocol/battle-protocol" icon="swords">
+    Understand battle-specific messages and game state updates
+  </Card>
+  <Card title="Choice Requests" href="/protocol/choice-requests" icon="hand-pointer">
+    Handle player decisions and move selections
+  </Card>
+</CardGroup>

@@ -1,0 +1,520 @@
+---
+title: 'Dex API'
+description: 'Core API for accessing Pokemon, moves, items, abilities, and game data'
+---
+
+# Dex API
+
+The `Dex` object is the central API for getting information about Pokemon, moves, items, abilities, natures, stats, and other game data. By default, it provides data for the latest generation (Gen 9), but can be configured to access data from any generation or mod.
+
+## Getting Started
+
+```typescript
+import { Dex } from './sim/dex';
+
+// Get information about a move
+const tackle = Dex.moves.get('Tackle');
+console.log(tackle.basePower); // 40
+
+// Get information about a species
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.types); // ['Electric']
+
+// Get information about an ability
+const overgrow = Dex.abilities.get('Overgrow');
+console.log(overgrow.name); // 'Overgrow'
+```
+
+## Accessing Generation-Specific Data
+
+Use `Dex.mod()` to access data from specific generations or mods:
+
+```typescript
+// Access Gen 1 data
+const gen1Dex = Dex.mod('gen1');
+const gen1Tackle = gen1Dex.moves.get('Tackle');
+console.log(gen1Tackle.basePower); // 35
+
+// Access Gen 5 data
+const gen5Dex = Dex.mod('gen5');
+
+// Access data by generation number
+const gen3Dex = Dex.forGen(3);
+```
+
+## Core Properties
+
+<ParamField path="moves" type="DexMoves">
+  Access to all move data. See [Moves API](/api/moves) for details.
+</ParamField>
+
+<ParamField path="species" type="DexSpecies">
+  Access to all Pokemon species data. See [Species API](/api/species) for details.
+</ParamField>
+
+<ParamField path="abilities" type="DexAbilities">
+  Access to all ability data. See [Abilities API](/api/abilities) for details.
+</ParamField>
+
+<ParamField path="items" type="DexItems">
+  Access to all item data. See [Items API](/api/items) for details.
+</ParamField>
+
+<ParamField path="types" type="DexTypes">
+  Access to type effectiveness data and type chart information.
+</ParamField>
+
+<ParamField path="natures" type="DexNatures">
+  Access to nature data and stat modifications.
+</ParamField>
+
+<ParamField path="gen" type="number">
+  The generation number this Dex instance represents (1-9).
+</ParamField>
+
+<ParamField path="currentMod" type="string">
+  The mod identifier for this Dex instance (e.g., 'gen9', 'gen1', 'base').
+</ParamField>
+
+## Methods
+
+### mod()
+
+```typescript
+Dex.mod(mod: string | undefined): ModdedDex
+```
+
+Returns a Dex instance for a specific generation or mod.
+
+<ParamField path="mod" type="string">
+  The mod identifier (e.g., 'gen1', 'gen5', 'gen9'). Pass `undefined` or `'base'` for the current generation.
+</ParamField>
+
+<ResponseField name="return" type="ModdedDex">
+  A Dex instance configured for the specified generation or mod.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const gen4 = Dex.mod('gen4');
+const platinum = gen4.moves.get('Draco Meteor');
+```
+
+### forGen()
+
+```typescript
+Dex.forGen(gen: number): ModdedDex
+```
+
+Returns a Dex instance for a specific generation number.
+
+<ParamField path="gen" type="number">
+  Generation number (1-9). Pass 0 to return the current Dex instance.
+</ParamField>
+
+<ResponseField name="return" type="ModdedDex">
+  A Dex instance for the specified generation.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const gen2 = Dex.forGen(2);
+const pursuit = gen2.moves.get('Pursuit');
+```
+
+### forFormat()
+
+```typescript
+Dex.forFormat(format: Format | string): ModdedDex
+```
+
+Returns a Dex instance appropriate for a specific battle format.
+
+<ParamField path="format" type="Format | string">
+  A Format object or format ID string (e.g., 'gen8ou', 'gen3ubers').
+</ParamField>
+
+<ResponseField name="return" type="ModdedDex">
+  A Dex instance configured for the format's generation/mod.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const gen8OU = Dex.forFormat('gen8ou');
+const dynamax = gen8OU.conditions.get('Dynamax');
+```
+
+### getImmunity()
+
+```typescript
+Dex.getImmunity(
+  source: { type: string } | string,
+  target: { getTypes: () => string[] } | { types: string[] } | string[] | string
+): boolean
+```
+
+Checks if a target is immune to a type or status condition.
+
+<ParamField path="source" type="{ type: string } | string">
+  The attacking type or status condition name.
+</ParamField>
+
+<ParamField path="target" type="object | string[] | string">
+  The target's typing. Can be a Pokemon object, an array of type names, or a single type name.
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  `false` if the target is immune, `true` otherwise.
+</ResponseField>
+
+**Example:**
+
+```typescript
+// Check if Ghost is immune to Normal
+const immune = Dex.getImmunity('Normal', 'Ghost');
+console.log(immune); // false
+
+// Check if Ground is immune to Electric
+const groundImmune = Dex.getImmunity('Electric', 'Ground');
+console.log(groundImmune); // false
+
+// Check with multiple types
+const pidgey = Dex.species.get('Pidgey');
+const electricHitsPidgey = Dex.getImmunity('Electric', pidgey.types);
+console.log(electricHitsPidgey); // true
+```
+
+### getEffectiveness()
+
+```typescript
+Dex.getEffectiveness(
+  source: { type: string } | string,
+  target: { getTypes: () => string[] } | { types: string[] } | string[] | string
+): number
+```
+
+Calculates type effectiveness as a modifier.
+
+<ParamField path="source" type="{ type: string } | string">
+  The attacking type.
+</ParamField>
+
+<ParamField path="target" type="object | string[] | string">
+  The target's typing.
+</ParamField>
+
+<ResponseField name="return" type="number">
+  Total type effectiveness modifier. `1` = super effective, `-1` = not very effective, `0` = neutral.
+</ResponseField>
+
+**Example:**
+
+```typescript
+// Water vs Fire (super effective)
+const waterVsFire = Dex.getEffectiveness('Water', 'Fire');
+console.log(waterVsFire); // 1
+
+// Fire vs Water (not very effective)
+const fireVsWater = Dex.getEffectiveness('Fire', 'Water');
+console.log(fireVsWater); // -1
+
+// Check dual-type effectiveness
+const fireVsGrassIce = Dex.getEffectiveness('Fire', ['Grass', 'Ice']);
+console.log(fireVsGrassIce); // 2 (super effective against both)
+```
+
+### getName()
+
+```typescript
+Dex.getName(name: any): string
+```
+
+Sanitizes a username or Pokemon nickname for safe use in the PS protocol.
+
+<ParamField path="name" type="any">
+  The name to sanitize (typically a string or number).
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The sanitized name, or an empty string if no valid name can be produced.
+</ResponseField>
+
+The sanitized string upholds these guarantees:
+- No ASCII whitespace except single spaces
+- No leading or trailing spaces
+- No characters: `|`, `,`, `[`, `]`
+- Not an empty string
+- No Unicode RTL control characters
+- No multiple consecutive spaces
+- Maximum 18 characters
+- No excessive zalgo text
+
+**Example:**
+
+```typescript
+const name1 = Dex.getName('  Pikachu  ');
+console.log(name1); // 'Pikachu'
+
+const name2 = Dex.getName('Test|Name');
+console.log(name2); // 'Test Name'
+```
+
+### getHiddenPower()
+
+```typescript
+Dex.getHiddenPower(ivs: StatsTable): { type: string, power: number }
+```
+
+Calculates Hidden Power type and base power from IVs.
+
+<ParamField path="ivs" type="StatsTable">
+  An object containing IV values for all stats: `{ hp, atk, def, spa, spd, spe }`.
+</ParamField>
+
+<ResponseField name="return" type="object">
+  An object with `type` (Hidden Power type name) and `power` (base power, 60 in Gen 6+).
+</ResponseField>
+
+**Example:**
+
+```typescript
+const ivs = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 30 };
+const hp = Dex.getHiddenPower(ivs);
+console.log(hp.type); // 'Ice'
+console.log(hp.power); // 60
+```
+
+### getActiveMove()
+
+```typescript
+Dex.getActiveMove(move: Move | string): ActiveMove
+```
+
+Ensures we're working on a copy of a move suitable for battle use.
+
+<ParamField path="move" type="Move | string">
+  A Move object or move name/ID.
+</ParamField>
+
+<ResponseField name="return" type="ActiveMove">
+  A mutable copy of the move with `hit` counter initialized to 0.
+</ResponseField>
+
+By default, this won't make a copy of a copy: `moveCopy === Dex.getActiveMove(moveCopy)`. To force a new copy, use `Dex.getActiveMove(moveCopy.id)`.
+
+**Example:**
+
+```typescript
+const move = Dex.moves.get('Thunder');
+const activeMove = Dex.getActiveMove(move);
+activeMove.hit = 1; // Safe to modify
+```
+
+### dataSearch()
+
+```typescript
+Dex.dataSearch(
+  target: string,
+  searchIn?: ('Pokedex' | 'Moves' | 'Abilities' | 'Items' | 'Natures' | 'TypeChart')[] | null,
+  isInexact?: boolean
+): AnyObject[] | null
+```
+
+Searches for data entries across multiple categories with fuzzy matching.
+
+<ParamField path="target" type="string">
+  The search query.
+</ParamField>
+
+<ParamField path="searchIn" type="string[]">
+  Array of categories to search in. Defaults to `['Pokedex', 'Moves', 'Abilities', 'Items', 'Natures']`.
+</ParamField>
+
+<ParamField path="isInexact" type="boolean">
+  Whether this is already a fuzzy search (used internally to prevent infinite loops).
+</ParamField>
+
+<ResponseField name="return" type="object[] | null">
+  Array of search results with `name`, `searchType`, and `isInexact` properties, or `null` if no results.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const results = Dex.dataSearch('pika');
+if (results) {
+  for (const result of results) {
+    console.log(`${result.searchType}: ${result.name}`);
+  }
+}
+// Output: pokemon: Pikachu
+```
+
+## Utility Methods
+
+### toID()
+
+```typescript
+import { toID } from './sim/dex';
+
+toID(text: any): ID
+```
+
+Converts a string to an ID format (lowercase alphanumeric).
+
+**Example:**
+
+```typescript
+const id = toID('Dragon Dance');
+console.log(id); // 'dragondance'
+```
+
+### trunc()
+
+```typescript
+Dex.trunc(num: number, bits?: number): number
+```
+
+Truncates a number into an unsigned 32-bit integer, for compatibility with cartridge game math systems.
+
+<ParamField path="num" type="number">
+  The number to truncate.
+</ParamField>
+
+<ParamField path="bits" type="number">
+  Optional. If specified, returns `num % (2 ** bits)`. Otherwise returns `num >>> 0`.
+</ParamField>
+
+**Example:**
+
+```typescript
+const truncated = Dex.trunc(4294967296.7);
+console.log(truncated); // 0
+
+const fourBit = Dex.trunc(19, 4);
+console.log(fourBit); // 3
+```
+
+## Nonstandard Data
+
+<Note>
+  The Dex API provides access to nonstandard data (CAP Pokemon, unreleased content, past generation data, etc.). Filter using the `isNonstandard` property.
+</Note>
+
+All entries have an `exists` property:
+- `exists: true` - The entry has data (may still be nonstandard)
+- `exists: false` - No data found (typo or invalid ID)
+
+The `isNonstandard` property indicates the reason data is nonstandard:
+- `null` - Standard/current generation data
+- `'Past'` - From a previous generation
+- `'Future'` - From a future generation (unreleased)
+- `'CAP'` - Create-A-Pokemon project
+- `'LGPE'` - Let's Go Pikachu/Eevee exclusive
+- `'Custom'` - Invalid/unknown
+- `'Unobtainable'` - Exists but cannot be obtained
+- `'Gigantamax'` - Gigantamax-related
+
+**Example:**
+
+```typescript
+const frobnicate = Dex.moves.get('frobnicate');
+console.log(frobnicate.exists); // false
+console.log(frobnicate.isNonstandard); // 'Custom'
+
+const tomohawk = Dex.species.get('tomohawk');
+console.log(tomohawk.exists); // true
+console.log(tomohawk.isNonstandard); // 'CAP'
+
+const pikachu = Dex.species.get('pikachu');
+console.log(pikachu.exists); // true
+console.log(pikachu.isNonstandard); // null
+```
+
+## Preloading Data
+
+<Note>
+  Preloading is optional. Data loads automatically on first access.
+</Note>
+
+You can preload data to avoid loading delays later:
+
+```typescript
+// Preload mod list (~10ms)
+Dex.includeMods();
+
+// Preload formats (~30ms, includes mods)
+Dex.includeFormats();
+
+// Preload Gen 8 data (~500ms, includes formats)
+Dex.includeData();
+
+// Preload all mod data (~1500ms, includes Gen 8)
+Dex.includeModData();
+```
+
+## Type Definitions
+
+```typescript
+interface ModdedDex {
+  readonly name: string;
+  readonly isBase: boolean;
+  readonly currentMod: string;
+  readonly dataDir: string;
+  readonly gen: number;
+  
+  readonly moves: DexMoves;
+  readonly species: DexSpecies;
+  readonly abilities: DexAbilities;
+  readonly items: DexItems;
+  readonly types: DexTypes;
+  readonly natures: DexNatures;
+  readonly stats: DexStats;
+  
+  mod(mod: string | undefined): ModdedDex;
+  forGen(gen: number): ModdedDex;
+  forFormat(format: Format | string): ModdedDex;
+  
+  getImmunity(source: string, target: string | string[]): boolean;
+  getEffectiveness(source: string, target: string | string[]): number;
+  getName(name: any): string;
+  getHiddenPower(ivs: StatsTable): { type: string, power: number };
+  getActiveMove(move: Move | string): ActiveMove;
+  
+  toID(text: any): ID;
+  deepClone<T>(obj: T): T;
+  deepFreeze<T>(obj: T): Readonly<T>;
+}
+
+type StatsTable = {
+  hp: number;
+  atk: number;
+  def: number;
+  spa: number;
+  spd: number;
+  spe: number;
+};
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Moves API" icon="wind" href="/api/moves">
+    Access move data, damage calculations, and battle mechanics
+  </Card>
+  
+  <Card title="Species API" icon="dragon" href="/api/species">
+    Pokemon species data, formes, stats, and evolution chains
+  </Card>
+  
+  <Card title="Abilities API" icon="sparkles" href="/api/abilities">
+    Ability effects, ratings, and battle interactions
+  </Card>
+  
+  <Card title="Items API" icon="gem" href="/api/items">
+    Items, held items, berries, and Z-Crystals
+  </Card>
+</CardGroup>

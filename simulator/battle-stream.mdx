@@ -1,0 +1,402 @@
+---
+title: BattleStream API
+description: Detailed documentation of the BattleStream interface and player streams
+---
+
+The `BattleStream` class is the primary interface for interacting with the Pokemon Showdown battle simulator. It extends `ObjectReadWriteStream<string>` to provide a stream-based API.
+
+## BattleStream Class
+
+### Constructor
+
+Create a new battle stream with optional configuration:
+
+```typescript
+const stream = new BattleStream(options?: {
+    debug?: boolean,
+    noCatch?: boolean,
+    keepAlive?: boolean,
+    replay?: boolean | 'spectator'
+});
+```
+
+#### Options
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug mode to output additional information
+</ParamField>
+
+<ParamField path="noCatch" type="boolean" default={false}>
+  Disable error catching - errors will throw instead of being pushed to the stream
+</ParamField>
+
+<ParamField path="keepAlive" type="boolean" default={false}>
+  Keep the stream alive after the battle ends (don't automatically call `pushEnd()`)
+</ParamField>
+
+<ParamField path="replay" type="boolean | 'spectator'" default={false}>
+  Enable replay mode:
+  - `false` - Normal mode with all message types
+  - `true` - Omniscient replay (sees everything including exact HP)
+  - `'spectator'` - Spectator replay (public information only)
+</ParamField>
+
+### Properties
+
+```typescript
+class BattleStream {
+    debug: boolean;
+    noCatch: boolean;
+    replay: boolean | 'spectator';
+    keepAlive: boolean;
+    battle: Battle | null;
+}
+```
+
+- `battle` - The underlying Battle instance (null until `>start` is called)
+
+### Methods
+
+BattleStream inherits from `ObjectReadWriteStream`:
+
+<Tabs>
+  <Tab title="write()">
+    Write a command to the battle stream:
+
+    ```js
+    stream.write('>start {"formatid":"gen9ou"}');
+    ```
+
+    Commands are processed line by line. Only lines starting with `>` are executed.
+  </Tab>
+  <Tab title="read/iterate">
+    Read output using async iteration:
+
+    ```js
+    for await (const message of stream) {
+        console.log(message);
+    }
+    ```
+
+    Messages are output strings following the battle protocol.
+  </Tab>
+  <Tab title="writeEnd()">
+    Signal end of input:
+
+    ```js
+    stream.writeEnd();
+    ```
+
+    This will end the battle if not already ended.
+  </Tab>
+</Tabs>
+
+## Player Streams
+
+For more complex applications, you can split a BattleStream into separate streams for each participant using `getPlayerStreams()`.
+
+### Creating Player Streams
+
+```js
+const { BattleStream, getPlayerStreams } = require('pokemon-showdown');
+
+const battleStream = new BattleStream();
+const streams = getPlayerStreams(battleStream);
+```
+
+This returns an object with six streams:
+
+```typescript
+{
+    omniscient: ObjectReadWriteStream<string>,
+    spectator: ObjectReadStream<string>,
+    p1: ObjectReadWriteStream<string>,
+    p2: ObjectReadWriteStream<string>,
+    p3: ObjectReadWriteStream<string>,
+    p4: ObjectReadWriteStream<string>
+}
+```
+
+### Stream Types
+
+<Tabs>
+  <Tab title="omniscient">
+    **Read/Write Stream** - Sees all information including exact HP and private details.
+
+    ```js
+    // Start battle through omniscient stream
+    streams.omniscient.write('>start {"formatid":"gen9ou"}');
+    streams.omniscient.write('>player p1 {"name":"Alice","team":"..."}');
+    streams.omniscient.write('>player p2 {"name":"Bob","team":"..."}');
+
+    // Read all battle messages
+    for await (const chunk of streams.omniscient) {
+        console.log(chunk);
+    }
+    ```
+
+    Use this for game logs, replays, or server-side processing.
+  </Tab>
+  <Tab title="spectator">
+    **Read-Only Stream** - Public information only (no exact HP, no private details).
+
+    ```js
+    for await (const chunk of streams.spectator) {
+        // Only receives public updates
+        console.log(chunk);
+    }
+    ```
+
+    Use this for spectator views or public broadcasts.
+  </Tab>
+  <Tab title="p1, p2, p3, p4">
+    **Read/Write Streams** - Player-specific views with their private information.
+
+    ```js
+    // Player writes choices without >p1 prefix
+    streams.p1.write('move 1');
+    streams.p2.write('switch 2');
+
+    // Player receives their choice requests and public updates
+    for await (const chunk of streams.p1) {
+        // Parse choice requests
+        if (chunk.includes('|request|')) {
+            const request = JSON.parse(
+                chunk.split('|request|')[1].split('\n')[0]
+            );
+            // Make decision based on request...
+        }
+    }
+    ```
+
+    <Note>
+      When writing to player streams, the `>p1`/`>p2` prefix is added automatically.
+    </Note>
+  </Tab>
+</Tabs>
+
+### Player Stream Example
+
+Complete example with AI players:
+
+```js
+const { BattleStream, getPlayerStreams, Teams } = require('pokemon-showdown');
+
+const streams = getPlayerStreams(new BattleStream());
+
+// Generate teams
+const team1 = Teams.pack(Teams.generate('gen9randombattle'));
+const team2 = Teams.pack(Teams.generate('gen9randombattle'));
+
+// Start battle from omniscient stream
+streams.omniscient.write(`>start {"formatid":"gen9randombattle"}`);
+streams.omniscient.write(`>player p1 {"name":"Bot 1","team":${JSON.stringify(team1)}}`);
+streams.omniscient.write(`>player p2 {"name":"Bot 2","team":${JSON.stringify(team2)}}`);
+
+// Log omniscient view
+(async () => {
+    for await (const chunk of streams.omniscient) {
+        console.log(chunk);
+    }
+})();
+
+// Player 1 AI
+(async () => {
+    for await (const chunk of streams.p1) {
+        if (chunk.includes('|request|')) {
+            // Simple AI: always use first move
+            streams.p1.write('move 1');
+        }
+    }
+})();
+
+// Player 2 AI
+(async () => {
+    for await (const chunk of streams.p2) {
+        if (chunk.includes('|request|')) {
+            // Simple AI: always use first move
+            streams.p2.write('move 1');
+        }
+    }
+})();
+```
+
+## BattlePlayer Class
+
+For building AI players, extend the `BattlePlayer` abstract class:
+
+```typescript
+abstract class BattlePlayer {
+    constructor(
+        playerStream: ObjectReadWriteStream<string>,
+        debug?: boolean
+    );
+
+    async start(): Promise<void>;
+    receive(chunk: string): void;
+    receiveLine(line: string): void;
+    abstract receiveRequest(request: ChoiceRequest): void;
+    receiveError(error: Error): void;
+    choose(choice: string): void;
+
+    readonly stream: ObjectReadWriteStream<string>;
+    readonly log: string[];
+    readonly debug: boolean;
+}
+```
+
+### Implementing a Player
+
+```js
+class MyAI extends BattlePlayer {
+    receiveRequest(request) {
+        // request.active contains move choices
+        // request.side.pokemon contains team info
+        
+        if (request.forceSwitch) {
+            // Must switch
+            this.choose('switch 2');
+        } else if (request.active) {
+            // Can make a move
+            this.choose('move 1');
+        } else if (request.teamPreview) {
+            // Team preview
+            this.choose('team 123456');
+        }
+    }
+}
+
+const ai = new MyAI(streams.p1, true);
+void ai.start(); // Start listening for requests
+```
+
+<Warning>
+  The `BattlePlayer` class is abstract - you must implement the `receiveRequest()` method.
+</Warning>
+
+## BattleTextStream
+
+For standard I/O compatibility, use `BattleTextStream`:
+
+```js
+const { BattleTextStream } = require('pokemon-showdown');
+
+const textStream = new BattleTextStream({ debug: true });
+
+// Pipe to/from stdin/stdout
+process.stdin.pipe(textStream);
+textStream.pipe(process.stdout);
+```
+
+This wraps `BattleStream` and handles text-based line-delimited I/O.
+
+## Message Flow
+
+<Steps>
+  <Step title="Battle Start">
+    Send `>start` and `>player` commands to initialize the battle.
+  </Step>
+  <Step title="Choice Requests">
+    The simulator sends `sideupdate` messages with `|request|` containing choice data.
+  </Step>
+  <Step title="Player Choices">
+    Players respond with `>p1`/`>p2` choice commands.
+  </Step>
+  <Step title="Battle Updates">
+    The simulator sends `update` messages with battle state changes.
+  </Step>
+  <Step title="Battle End">
+    The simulator sends an `end` message with final battle data.
+  </Step>
+</Steps>
+
+### Message Routing
+
+When using `getPlayerStreams()`, messages are automatically routed:
+
+- **update messages** with `|split|p1` → separate content for p1 stream vs spectator stream
+- **sideupdate messages** → routed to the specific player stream
+- **end messages** → sent to all streams
+
+## Advanced Usage
+
+### Custom Message Handling
+
+Override `pushMessage()` for custom output handling:
+
+```typescript
+class CustomBattleStream extends BattleStream {
+    pushMessage(type: string, data: string) {
+        // Custom handling
+        console.log(`[${type}]`, data);
+        super.pushMessage(type, data);
+    }
+}
+```
+
+### Accessing the Battle Instance
+
+Once started, access the underlying Battle object:
+
+```js
+stream.write(`>start {"formatid":"gen9ou"}`);
+
+// After start command
+const battle = stream.battle;
+console.log(battle.turn); // Current turn number
+console.log(battle.sides[0].name); // Player 1 name
+```
+
+<Warning>
+  The `battle` property is `null` until the `>start` command is processed.
+</Warning>
+
+## Complete Example from Source
+
+Here's the actual example from the Pokemon Showdown source code:
+
+```typescript
+import { BattleStream, getPlayerStreams, Teams } from 'pokemon-showdown';
+import { RandomPlayerAI } from 'pokemon-showdown/sim/tools/random-player-ai';
+
+const streams = getPlayerStreams(new BattleStream());
+
+const spec = {
+    formatid: "gen7customgame",
+};
+const p1spec = {
+    name: "Bot 1",
+    team: Teams.pack(Teams.generate('gen7randombattle')),
+};
+const p2spec = {
+    name: "Bot 2",
+    team: Teams.pack(Teams.generate('gen7randombattle')),
+};
+
+const p1 = new RandomPlayerAI(streams.p1);
+const p2 = new RandomPlayerAI(streams.p2);
+
+void p1.start();
+void p2.start();
+
+void (async () => {
+    for await (const chunk of streams.omniscient) {
+        console.log(chunk);
+    }
+})();
+
+void streams.omniscient.write(`>start ${JSON.stringify(spec)}
+>player p1 ${JSON.stringify(p1spec)}
+>player p2 ${JSON.stringify(p2spec)}`);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/simulator/usage">
+    Learn the complete simulator API
+  </Card>
+  <Card title="Team Formats" icon="users" href="/simulator/teams">
+    Understand team format conversions
+  </Card>
+</CardGroup>

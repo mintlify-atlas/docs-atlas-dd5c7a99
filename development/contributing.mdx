@@ -1,0 +1,366 @@
+---
+title: Contributing to Pokemon Showdown
+description: Guide for contributing to the Pokemon Showdown codebase
+icon: code-pull-request
+---
+
+Pokemon Showdown welcomes contributions from the community. This guide covers everything you need to know to contribute effectively.
+
+## Building and Running
+
+<Steps>
+  <Step title="Start the Server">
+    Run `./pokemon-showdown` to start a local server.
+    
+    <Note>Windows users should use `node pokemon-showdown` instead of `./pokemon-showdown`</Note>
+  </Step>
+
+  <Step title="Access the Local Server">
+    If your browser forces HTTPS and you cannot access the local server:
+    - **Firefox**: Disable "DNS over HTTPS"
+    - **Chrome**: Disable "Async DNS resolver" in `chrome://flags`
+  </Step>
+
+  <Step title="Run Tests">
+    Execute unit tests with `npm test`
+    
+    For specific tests:
+    ```bash
+    npx mocha -g "text"
+    ```
+    
+    Or edit the test to use `it.only` instead of `it`
+  </Step>
+</Steps>
+
+### Useful Commands
+
+Explore other command-line options:
+
+```bash
+./pokemon-showdown help
+```
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card title="Bug Fixes" icon="bug">
+    Bug fix pull requests are always welcome
+  </Card>
+  
+  <Card title="Feature Additions" icon="sparkles">
+    Discuss feature additions at [psim.us/development](https://psim.us/development) or [psim.us/devdiscord](https://psim.us/devdiscord) first
+  </Card>
+  
+  <Card title="Ideas Issue" icon="lightbulb">
+    Check out [GitHub Issue #2444](https://github.com/smogon/pokemon-showdown/issues/2444) for inspiration
+  </Card>
+  
+  <Card title="Mechanics Bugs" icon="wrench">
+    View the [Mechanics Bugs Kanban Board](https://github.com/smogon/pokemon-showdown/projects/3)
+  </Card>
+</CardGroup>
+
+<Note>
+We try to respond to pull requests within a few days. Feel free to bump your PR if it seems forgotten.
+</Note>
+
+## Code Standards
+
+Most code standards are enforced by `eslint`. Run `npm test` to check for issues.
+
+### String Conventions
+
+Pokemon Showdown uses specific quote styles:
+
+```typescript
+// Backticks for interpolation
+const moveId = `move-${move.id}`;
+
+// Backticks for HTML/protocol code
+const html = `<strong>Fire Blast</strong>`;
+
+// Single quotes for IDs (not displayed to users)
+const id = 'fireblast';
+
+// Double quotes for user-facing text
+const name = "Fire Blast";
+```
+
+### Optionals: null vs undefined vs false
+
+**Standard convention**: Use `null` for optionals
+
+```typescript
+// Good
+function getUser(id: string): User | null {
+  // ...
+}
+
+// Legacy code may use undefined or false - convert to null
+```
+
+**Simulator-specific**: Event handlers may return `false | null | undefined`
+
+- `false` = action failed
+- `null` = action failed silently (suppress "But it failed!" messages)
+- `undefined` = action should be ignored
+
+```typescript
+// Thunder Wave hits Ground type
+immunityChecker.return(false); // Shows immunity message
+
+// Volt Absorb absorbs Thunder Wave
+voltAbsorb.return(null); // No additional failure message
+
+// Water Absorb doesn't interact with Thunder Wave
+waterAbsorb.return(undefined); // Continue checking other handlers
+```
+
+### Operators: || vs ??
+
+**Prefer `||`** for fallback values:
+
+```typescript
+const value = input || defaultValue;
+```
+
+Use `??` only when `0`, `''`, or `false` should not trigger fallback.
+
+## Comment Standards
+
+### C1. Don't Teach JavaScript
+
+Avoid documenting obvious language features:
+
+<CodeGroup>
+```typescript Bad
+// Increase counter by 1.
+counter++;
+```
+
+```typescript Good
+counter++; // No comment needed
+```
+</CodeGroup>
+
+### C2. Document in Names
+
+Use descriptive variable and function names:
+
+<CodeGroup>
+```typescript Bad
+/** move name */
+let value = "Stealth Rock";
+```
+
+```typescript Good
+let moveName = "Stealth Rock";
+```
+</CodeGroup>
+
+Create variables to give expressions meaningful names:
+
+<CodeGroup>
+```typescript Bad
+// if ten seconds have passed and the user is staff
+if (now > then + 10_000 && '~@%'.includes(user.tempGroup)) {
+```
+
+```typescript Good
+const tenSecondsPassed = now > then + 10_000;
+const userIsStaff = '~@%'.includes(user.tempGroup);
+if (tenSecondsPassed && userIsStaff) {
+```
+</CodeGroup>
+
+### C3. Doc Comments
+
+Use `/** */` comments for information that shows up in editor tooltips:
+
+```typescript
+/** null = not accepting connections */
+let numConnections: number | null = null;
+```
+
+### C4. Explain Complex Code
+
+Comment code that requires domain knowledge:
+
+```typescript
+// Chrome won't update unless you do this
+elem.innerHTML = elem.innerHTML;
+```
+
+### C5. Jokes Are Welcome
+
+```typescript
+// GET IT? BECAUSE WE DON'T KNOW WHAT SPECIES IT IS???
+if (!species) species = 'Unown';
+```
+
+## Commit Message Standards
+
+### CM1. What, Not How
+
+Describe what the code does, not how:
+
+<CodeGroup>
+```text Bad
+Change Wonder Guard from onBeforeMove to onTryHit
+```
+
+```text Good
+Fix Mold Breaker Wonder Guard interaction
+```
+</CodeGroup>
+
+### CM2. Imperative Mood
+
+Start with imperative verbs:
+
+<CodeGroup>
+```text Bad
+Adding namefilter
+Adds namefilter
+```
+
+```text Good
+Add namefilter
+```
+</CodeGroup>
+
+### CM3. Grammar Rules
+
+- Keep first line under 50 characters
+- Capitalize first letter
+- No period at the end
+
+<CodeGroup>
+```text Bad
+refactor users to use classes
+Refactor Users to use classes.
+```
+
+```text Good
+Refactor Users to use classes
+```
+</CodeGroup>
+
+### CM4. Tag Your Changes
+
+Prefix commits with the affected component:
+
+<CodeGroup>
+```text Bad
+Ban Genesect
+```
+
+```text Good
+Monotype: Ban Genesect
+```
+</CodeGroup>
+
+### CM5. Squashing (Optional)
+
+GitHub now supports squash-merging, so squashing commits in pull requests is optional. However:
+
+- Commits that fix previous commits in the same PR should be squashed
+- Each commit in a rebase-merge should make sense standalone
+
+<Note>
+[Rebase Guide](https://redew.github.io/rebaseguide/) - Never close and recreate a broken PR, ask for help instead
+</Note>
+
+## Modern JavaScript/TypeScript
+
+We prefer modern syntax supported by the latest Node LTS:
+
+| Feature | Status |
+|---------|--------|
+| `.forEach` | Avoid - use `for...of` instead |
+| `.reduce` | Usually prefer `for...of` for readability |
+| Multiline template strings | Avoid - explicitly use `\n` |
+| `async`/`await` | Preferred for readability |
+| Getters/setters/Proxy | Avoid magic - be explicit |
+| Constant Enums | Don't use - prefer union types |
+| Default Properties | Use |
+
+```typescript
+// Prefer union types over enums
+type Category = 'Physical' | 'Special' | 'Status';
+
+// Prefer for...of over forEach
+for (const item of items) {
+  // ...
+}
+```
+
+## Dependencies
+
+We avoid adding NPM dependencies casually:
+
+<Warning>
+For functionality that can be implemented in ~30 lines, we write it ourselves in `lib/` to avoid dependency issues and optimize for our use case.
+</Warning>
+
+<Note>
+We do accept dependencies where they make sense (like SockJS), but evaluate them more critically than most Node projects.
+</Note>
+
+## License
+
+All submitted code must be MIT licensed. The GitHub ToS ensures this, but keep it in mind:
+
+- **Server code**: MIT license (inherited from your fork)
+- **Client code**: MIT license (you'll be asked to confirm on first client PR)
+
+## Design Principles
+
+We prioritize usability and accessibility over trendy aesthetics.
+
+<CardGroup cols={2}>
+  <Card title="Less Text is Better" icon="minimize">
+    "1234 battles" > "There are currently 1234 active battles being played"
+  </Card>
+  
+  <Card title="Buttons Say What They Do" icon="hand-pointer">
+    Use "[Delete] [Cancel]" instead of "Delete this file? [Yes] [No]"
+  </Card>
+  
+  <Card title="Remove Unnecessary Clicks" icon="mouse-pointer">
+    Replace "Are you sure?" dialogs with "Undo" buttons when possible
+  </Card>
+  
+  <Card title="Remove Unnecessary Scrolling" icon="arrows-up-down">
+    Use expand/collapse for large content instead of tiny scroll regions
+  </Card>
+  
+  <Card title="Affordances Matter" icon="eye">
+    Buttons should look like buttons. Clickable things should look clickable.
+  </Card>
+  
+  <Card title="Feedback is Important" icon="comments">
+    Show loading states, disable clicked buttons, display error messages
+  </Card>
+</CardGroup>
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="Development Chat" icon="discord" href="https://psim.us/development">
+    Join the development discussion
+  </Card>
+  
+  <Card title="Development Discord" icon="discord" href="https://psim.us/devdiscord">
+    Discord server for contributors
+  </Card>
+  
+  <Card title="Suggestions Forum" icon="comments" href="https://www.smogon.com/forums/forums/suggestions.517/">
+    Browse approved suggestions
+  </Card>
+  
+  <Card title="GitHub Repository" icon="github" href="https://github.com/smogon/pokemon-showdown">
+    Source code and issue tracker
+  </Card>
+</CardGroup>

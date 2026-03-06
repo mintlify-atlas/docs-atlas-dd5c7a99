@@ -1,0 +1,223 @@
+---
+title: 'Dex API Overview'
+description: 'Access Pokémon, moves, items, abilities, and more with the Dex API'
+---
+
+## Introduction
+
+The Dex API is Pokemon Showdown's library for accessing information about Pokémon species, moves, items, abilities, natures, stats, and more. It provides a consistent interface for querying game data across all generations.
+
+<Note>
+By default, `Dex` returns information about the latest generation. Use `Dex.mod()` to access data from previous generations.
+</Note>
+
+## Getting Started
+
+<Steps>
+
+<Step title="Import the Dex">
+Import the Dex module from Pokemon Showdown:
+
+```javascript
+const {Dex} = require('pokemon-showdown');
+```
+</Step>
+
+<Step title="Query data">
+Access information using the appropriate method:
+
+```javascript
+const tackle = Dex.moves.get('Tackle');
+console.log(tackle.basePower); // 40
+
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.types); // ['Electric']
+```
+</Step>
+
+<Step title="Use generation-specific data">
+Access data from previous generations using `Dex.mod()`:
+
+```javascript
+const gen1Tackle = Dex.mod('gen1').moves.get('Tackle');
+console.log(gen1Tackle.basePower); // 35
+```
+</Step>
+
+</Steps>
+
+## Core Methods
+
+<CardGroup cols={2}>
+
+<Card title="Species Data" icon="dragon" href="/dex/species">
+Get information about Pokémon species including stats, types, and abilities
+</Card>
+
+<Card title="Move Data" icon="bolt" href="/dex/moves">
+Access move properties like base power, accuracy, type, and effects
+</Card>
+
+<Card title="Ability Data" icon="shield-halved" href="/dex/abilities">
+Query ability names, descriptions, and effects
+</Card>
+
+<Card title="Item Data" icon="gem" href="/dex/items">
+Retrieve item information including held item effects
+</Card>
+
+</CardGroup>
+
+## Generation Support
+
+The Dex API supports all Pokémon generations through mods:
+
+```javascript
+// Current generation (Gen 9)
+const currentDex = Dex;
+
+// Access previous generations
+const gen1Dex = Dex.mod('gen1');
+const gen4Dex = Dex.mod('gen4');
+const gen8Dex = Dex.mod('gen8');
+
+// Use forGen() as shorthand
+const gen7Dex = Dex.forGen(7);
+```
+
+## Nonstandard Data
+
+<Warning>
+The Dex API includes nonstandard data from CAP, past generations, and unreleased content. Filter by `exists` and `isNonstandard` properties.
+</Warning>
+
+### Filtering Nonstandard Content
+
+```javascript
+const frobnicate = Dex.moves.get('frobnicate');
+console.log(frobnicate.exists); // false
+console.log(frobnicate.isNonstandard); // 'Custom'
+
+const tomohawk = Dex.species.get('tomohawk');
+console.log(tomohawk.exists); // true
+console.log(tomohawk.isNonstandard); // 'CAP'
+
+const pikachu = Dex.species.get('pikachu');
+console.log(pikachu.exists); // true
+console.log(pikachu.isNonstandard); // null
+```
+
+- `exists: false` - Data doesn't exist (e.g., typos or Custom entries)
+- `exists: true` - Data exists in the database
+- `isNonstandard: null` - Standard, current generation data
+- `isNonstandard: 'CAP'` - CAP (Create-A-Pokémon) project data
+- `isNonstandard: 'Past'` - Available in past generations only
+
+## Format-Specific Data
+
+Get data for a specific format using `forFormat()`:
+
+```javascript
+const formatDex = Dex.forFormat('gen8ou');
+const move = formatDex.moves.get('Dynamax Cannon');
+```
+
+## Listing All Data
+
+Retrieve all entries of a given type:
+
+```javascript
+// Get all moves
+const allMoves = Dex.moves.all();
+
+// Get all species
+const allSpecies = Dex.species.all();
+
+// Get all abilities  
+const allAbilities = Dex.abilities.all();
+
+// Get all items
+const allItems = Dex.items.all();
+```
+
+<Note>
+The `.all()` method returns an array including nonstandard data. Filter the results as needed.
+</Note>
+
+## Type Utilities
+
+The Dex provides helper methods for type calculations:
+
+### Check Immunity
+
+```javascript
+// Check if target is immune to a type
+const isImmune = Dex.getImmunity('Ground', ['Flying']);
+console.log(isImmune); // false
+
+// Works with Pokemon objects
+const gliscor = Dex.species.get('Gliscor');
+const immune = Dex.getImmunity('Ground', gliscor);
+console.log(immune); // false (due to Flying type)
+```
+
+### Calculate Effectiveness
+
+```javascript
+// Get type effectiveness modifier
+const effectiveness = Dex.getEffectiveness('Fire', ['Grass', 'Ice']);
+console.log(effectiveness); // 2 (2x super effective)
+
+// Returns: 0 = neutral, 1 = super effective, -1 = not very effective
+```
+
+## Data Search
+
+Search across multiple data types:
+
+```javascript
+const results = Dex.dataSearch('thunder', ['Moves', 'Abilities']);
+// Returns matching moves and abilities containing "thunder"
+```
+
+## Preloading Data
+
+<Note>
+Preloading is optional. Data will be loaded automatically when needed.
+</Note>
+
+```javascript
+// Preload mod list (~10ms)
+Dex.includeMods();
+
+// Preload formats (~30ms)
+Dex.includeFormats();
+
+// Preload all Gen 8 data (~500ms)
+Dex.includeData();
+
+// Preload all mod data (~1500ms)
+Dex.includeModData();
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Species API" icon="dragon" href="/dex/species">
+Learn how to query Pokémon species data
+</Card>
+
+<Card title="Moves API" icon="bolt" href="/dex/moves">
+Explore move data and properties
+</Card>
+
+<Card title="Abilities API" icon="shield-halved" href="/dex/abilities">
+Discover ability information
+</Card>
+
+<Card title="Items API" icon="gem" href="/dex/items">
+Access held items and their effects
+</Card>
+
+</CardGroup>

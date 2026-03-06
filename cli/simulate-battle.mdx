@@ -1,0 +1,345 @@
+---
+title: 'simulate-battle Command'
+description: 'Simulate Pokemon battles programmatically using the command-line battle simulator'
+---
+
+## Overview
+
+The `simulate-battle` command runs Pokemon Showdown's battle simulator, allowing you to simulate battles programmatically by sending commands via stdin and receiving battle output via stdout.
+
+```bash
+./pokemon-showdown simulate-battle
+```
+
+This command is ideal for:
+- Building battle bots and AI agents
+- Testing battle mechanics
+- Running automated battle simulations
+- Integrating Pokemon Showdown battles into other applications
+
+## Command Options
+
+The `simulate-battle` command supports several flags:
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--debug` | `-D` | Enable debug mode for detailed error information |
+| `--replay` | `-R` | Generate replay data alongside battle output |
+| `--spectate` | `-S` | Generate spectator-compatible output (includes replay data) |
+
+### Example Usage
+
+```bash
+./pokemon-showdown simulate-battle --debug
+./pokemon-showdown simulate-battle --replay
+./pokemon-showdown simulate-battle -S
+```
+
+## Battle Stream Protocol
+
+The simulator uses a stream-based protocol where you write commands to stdin and read responses from stdout.
+
+<Note>
+  All input messages must start with `>`. Lines not starting with `>` are treated as comments and ignored.
+  
+  In standard IO, each message should end with `\n`.
+</Note>
+
+## Starting a Battle
+
+<Steps>
+  <Step title="Send start command">
+    Begin by sending a `>start` command with battle options:
+    
+    ```bash
+    >start {"formatid":"gen9ou"}
+    ```
+    
+    The options object must include:
+    - `formatid` - Format ID (required)
+    - `seed` - Array of four numbers for RNG (optional)
+    - `p1`, `p2`, `p3`, `p4` - Player options (optional)
+  </Step>
+  
+  <Step title="Configure players">
+    Send player information for each player:
+    
+    ```bash
+    >player p1 {"name":"Alice","team":"packed-team-here"}
+    >player p2 {"name":"Bob","team":"packed-team-here"}
+    ```
+    
+    <Note>
+      Teams must be in **packed format** or **JSON format**. For random formats, you can omit the team or set it to `null` to auto-generate a random team.
+    </Note>
+  </Step>
+  
+  <Step title="Team preview (if required)">
+    For formats with team preview, select your team order:
+    
+    ```bash
+    >p1 team 123456
+    >p2 team 123456
+    ```
+  </Step>
+  
+  <Step title="Make moves">
+    Send move and switch commands:
+    
+    ```bash
+    >p1 move 1
+    >p2 switch 3
+    ```
+  </Step>
+</Steps>
+
+## Complete Battle Example
+
+Here's a full example of a Gen 7 Random Battle:
+
+```bash
+echo '>start {"formatid":"gen7randombattle"}
+>player p1 {"name":"Alice"}
+>player p2 {"name":"Bob"}
+' | ./pokemon-showdown simulate-battle
+```
+
+### With Custom Teams
+
+```bash
+echo '>start {"formatid":"gen9ou"}
+>player p1 {"name":"Alice","team":"Pikachu|||lightball|thunderbolt,grassknot,surf,voltswitch|Hasty|,252,,,4,252|||||"}
+>player p2 {"name":"Bob","team":"Charizard||leftovers||flamethrower,airslash,roost,willowisp|Timid|,,,252,4,252||,,,30,,|||]"}
+>p1 team 1
+>p2 team 1
+>p1 move 1
+>p2 move 1
+' | ./pokemon-showdown simulate-battle
+```
+
+## Input Commands Reference
+
+### Start Battle
+
+```
+>start OPTIONS
+```
+
+Starts a new battle with the specified options (JSON object).
+
+**Required options:**
+- `formatid` (string) - The format ID (e.g., `"gen9ou"`, `"gen8randombattle"`)
+
+**Optional options:**
+- `seed` (number[4]) - RNG seed for reproducible battles
+- `p1`, `p2`, `p3`, `p4` (object) - Player options (can also be set separately)
+
+### Configure Player
+
+```
+>player PLAYERID PLAYEROPTIONS
+```
+
+Sets player information where `PLAYERID` is `p1`, `p2`, `p3`, or `p4`.
+
+**PLAYEROPTIONS** (JSON object):
+- `name` (string) - Player name (defaults to "Player 1", "Player 2", etc.)
+- `avatar` (string) - Player avatar (defaults to "")
+- `team` (string|array) - Team in packed format or JSON format
+
+<Warning>
+  Teams are NOT validated by the simulator. Use `validate-team` command first to ensure your team is legal for the format.
+</Warning>
+
+### Player Choices
+
+```
+>p1 CHOICE
+>p2 CHOICE
+>p3 CHOICE
+>p4 CHOICE
+```
+
+Makes a choice for the specified player.
+
+**Common choices:**
+- `move N` - Use move in slot N (1-4)
+- `move N mega` - Use move N and Mega Evolve
+- `move N zmove` - Use move N as a Z-Move
+- `move N dynamax` - Use move N and Dynamax
+- `move N terastallize` - Use move N and Terastallize
+- `switch N` - Switch to Pokemon in slot N (1-6)
+- `team NNNNNN` - Select team order during team preview (6 digits, 1-6)
+- `default` - Make a random legal choice
+- `undo` - Undo the last choice (if allowed)
+
+For complete choice documentation, see the [Simulator Protocol](/simulator/protocol#possible-choices).
+
+## Reading Output
+
+The simulator sends back messages delimited by `\n\n` (double newline) in standard IO.
+
+### Message Types
+
+#### Update Message
+
+```
+update
+|turn|1
+|move|p1a: Pikachu|Thunderbolt|p2a: Charizard
+|-damage|p2a: Charizard|50/100
+```
+
+An update that should be sent to all players and spectators.
+
+#### Side Update Message
+
+```
+sideupdate
+p1
+|request|{"requestType":"move",...}
+```
+
+Messages sent to only one specific player, including choice requests that tell the player what moves they can make.
+
+#### Split Message
+
+Within update messages, you may see split messages:
+
+```
+|split|p1
+SECRET_INFO
+PUBLIC_INFO
+```
+
+- **SECRET** - Detailed information for the specific player (e.g., exact HP values)
+- **PUBLIC** - Public information suitable for opponents and spectators
+
+#### End Message
+
+```
+end
+{"winner":"Alice","turns":25,...}
+```
+
+Sent at the end of a battle with summary data in JSON format.
+
+## Using from Other Languages
+
+Since the simulator uses standard IO, you can interact with it from any programming language:
+
+<CodeGroup>
+```python Python
+import subprocess
+
+proc = subprocess.Popen(
+    ['./pokemon-showdown', 'simulate-battle'],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True
+)
+
+# Start battle
+proc.stdin.write('>start {"formatid":"gen9randombattle"}\n')
+proc.stdin.write('>player p1 {"name":"Alice"}\n')
+proc.stdin.write('>player p2 {"name":"Bob"}\n')
+proc.stdin.flush()
+
+# Read output
+for line in proc.stdout:
+    if line == '\n':
+        # End of message
+        break
+    print(line.strip())
+```
+
+```javascript Node.js
+const { spawn } = require('child_process');
+
+const battle = spawn('./pokemon-showdown', ['simulate-battle']);
+
+// Send commands
+battle.stdin.write('>start {"formatid":"gen9randombattle"}\n');
+battle.stdin.write('>player p1 {"name":"Alice"}\n');
+battle.stdin.write('>player p2 {"name":"Bob"}\n');
+
+// Read output
+battle.stdout.on('data', (data) => {
+  console.log(data.toString());
+});
+```
+
+```go Go
+package main
+
+import (
+    "bufio"
+    "fmt"
+    "os/exec"
+)
+
+func main() {
+    cmd := exec.Command("./pokemon-showdown", "simulate-battle")
+    
+    stdin, _ := cmd.StdinPipe()
+    stdout, _ := cmd.StdoutPipe()
+    
+    cmd.Start()
+    
+    // Send commands
+    stdin.Write([]byte(">start {\"formatid\":\"gen9randombattle\"}\n"))
+    stdin.Write([]byte(">player p1 {\"name\":\"Alice\"}\n"))
+    stdin.Write([]byte(">player p2 {\"name\":\"Bob\"}\n"))
+    
+    // Read output
+    scanner := bufio.NewScanner(stdout)
+    for scanner.Scan() {
+        fmt.Println(scanner.Text())
+    }
+}
+```
+</CodeGroup>
+
+## Reproducible Battles
+
+You can create reproducible battles by providing a seed:
+
+```bash
+echo '>start {"formatid":"gen9randombattle","seed":[1,2,3,4]}
+>player p1 {"name":"Alice"}
+>player p2 {"name":"Bob"}
+' | ./pokemon-showdown simulate-battle
+```
+
+The same seed with the same choices will always produce the same battle outcome.
+
+## Error Handling
+
+<Note>
+  By default, errors are caught and logged to the battle output. Use `--debug` flag to enable detailed error information and stack traces.
+</Note>
+
+```bash
+./pokemon-showdown simulate-battle --debug
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Simulator Protocol" icon="book" href="/simulator/protocol">
+    Complete protocol documentation for battle messages and choices
+  </Card>
+  
+  <Card title="Team Formats" icon="users" href="/teams/formats">
+    Learn about packed format and team structure
+  </Card>
+  
+  <Card title="Team Commands" icon="wrench" href="/cli/team-commands">
+    Generate and validate teams for battles
+  </Card>
+  
+  <Card title="Node.js API" icon="node-js" href="/api/battle-stream">
+    Use the battle simulator directly in Node.js
+  </Card>
+</CardGroup>

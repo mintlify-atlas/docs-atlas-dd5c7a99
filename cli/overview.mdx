@@ -1,0 +1,185 @@
+---
+title: 'Command-Line Tools Overview'
+description: 'Learn how to use Pokemon Showdown command-line utilities for battle simulation, team management, and server operations'
+---
+
+## Introduction
+
+Pokemon Showdown provides a comprehensive command-line utility called `pokemon-showdown` that enables you to:
+
+- Simulate battles programmatically
+- Generate and validate teams
+- Convert between team formats
+- Start a Pokemon Showdown server
+
+The CLI is designed to be "unixy" - it uses standard input/output streams, making it easy to pipe commands together and integrate with other tools and programming languages.
+
+## Installation
+
+<Steps>
+  <Step title="Install Node.js">
+    Ensure you have Node.js version 22 or later installed on your system.
+  </Step>
+  
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/smogon/pokemon-showdown.git
+    cd pokemon-showdown
+    ```
+  </Step>
+  
+  <Step title="Build the project">
+    ```bash
+    ./build
+    ```
+    
+    <Note>
+      Windows users should use `node build` instead of `./build`, and replace `./` with `node ` in all commands.
+    </Note>
+  </Step>
+  
+  <Step title="Rebuild after updates">
+    Every time you update the code (e.g., with `git pull`), run `./build` again. If you encounter errors, try:
+    ```bash
+    ./build --force
+    ```
+  </Step>
+</Steps>
+
+## Getting Help
+
+You can access help for any command at any time:
+
+```bash
+./pokemon-showdown -h
+./pokemon-showdown help
+```
+
+## Available Commands
+
+<CardGroup cols={2}>
+  <Card title="simulate-battle" icon="swords" href="/cli/simulate-battle">
+    Simulate battles by sending commands via stdin and receiving output via stdout
+  </Card>
+  
+  <Card title="Team Commands" icon="users" href="/cli/team-commands">
+    Generate random teams, validate teams, and convert between team formats
+  </Card>
+  
+  <Card title="Server Commands" icon="server" href="/cli/server-commands">
+    Start a Pokemon Showdown server on a specified port
+  </Card>
+</CardGroup>
+
+## Command-Line Options
+
+The `pokemon-showdown` executable supports several command-line flags:
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--help` | `-h` | Display help information |
+| `--skip-build` | | Skip the automatic build step (server only) |
+| `--debug` | `-D` | Enable debug mode for battle simulation |
+| `--replay` | `-R` | Generate replay data during battle simulation |
+| `--spectate` | `-S` | Generate spectator-compatible output |
+
+## Piping Commands
+
+One of the most powerful features of the CLI is the ability to pipe commands together:
+
+### Example: Generate and Export a Team
+
+```bash
+./pokemon-showdown generate-team gen8randombattle | ./pokemon-showdown export-team
+```
+
+This generates a random team and immediately converts it to human-readable format:
+
+```
+Kartana @ Choice Band
+Ability: Beast Boost
+Level: 74
+EVs: 85 HP / 85 Atk / 85 Def / 85 SpA / 85 SpD / 85 Spe
+- Smart Strike
+- Sacred Sword
+- Knock Off
+- Leaf Blade
+
+Rotom (Rotom-Heat) @ Heavy-Duty Boots
+Ability: Levitate
+Level: 82
+...
+```
+
+### Example: Generate and Validate
+
+```bash
+./pokemon-showdown generate-team gen8randombattle | ./pokemon-showdown validate-team gen8ou
+```
+
+This generates a Random Battle team and validates it against OU format rules, which will typically produce errors:
+
+```
+Your set for Coalossal is flagged as Gigantamax, but Gigantamaxing is disallowed
+(If this was a mistake, disable Gigantamaxing on the set.)
+Octillery's ability Moody is banned.
+```
+
+## Team Format Requirements
+
+<Warning>
+  Commands that accept team input expect teams in **packed format** or **JSON format**. 
+  
+  Teambuilder export format (the human-readable format) is NOT supported as direct input. Use `pack-team` to convert exported teams to packed format first.
+</Warning>
+
+For detailed information about team formats, see the [Teams documentation](/teams/formats).
+
+## Usage from Other Languages
+
+Since the CLI uses standard input/output, you can easily call it from any programming language that supports subprocess execution:
+
+<CodeGroup>
+```python Python
+import subprocess
+
+result = subprocess.run(
+    ['./pokemon-showdown', 'generate-team', 'gen9randombattle'],
+    capture_output=True,
+    text=True
+)
+team = result.stdout.strip()
+```
+
+```javascript Node.js
+const { execSync } = require('child_process');
+
+const team = execSync(
+  './pokemon-showdown generate-team gen9randombattle'
+).toString().trim();
+```
+
+```ruby Ruby
+team = `./pokemon-showdown generate-team gen9randombattle`.strip
+```
+
+```go Go
+import "os/exec"
+
+cmd := exec.Command("./pokemon-showdown", "generate-team", "gen9randombattle")
+output, err := cmd.Output()
+team := string(output)
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Battle Simulation" icon="swords" href="/cli/simulate-battle">
+    Learn how to simulate battles programmatically
+  </Card>
+  
+  <Card title="Team Management" icon="users" href="/cli/team-commands">
+    Master team generation, validation, and conversion
+  </Card>
+</CardGroup>

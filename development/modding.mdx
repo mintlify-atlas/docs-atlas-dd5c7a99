@@ -1,0 +1,589 @@
+---
+title: Modding System
+description: Create custom mechanics and modifications in Pokemon Showdown
+icon: wrench
+---
+
+The modding system allows you to modify Pokemon Showdown's battle mechanics, add custom content, and create entirely new gameplay experiences. Mods are stored in `data/mods/` and can override any game data.
+
+## Mod Structure
+
+Each mod is a directory in `data/mods/` containing TypeScript files:
+
+```text
+data/mods/yourmod/
+├── abilities.ts      # Custom/modified abilities
+├── moves.ts          # Custom/modified moves
+├── items.ts          # Custom/modified items
+├── pokedex.ts        # Custom/modified Pokemon
+├── scripts.ts        # Battle hooks and custom logic
+├── conditions.ts     # Status conditions and effects
+├── formats-data.ts   # Tier and learnset data
+├── learnsets.ts      # Move learnsets
+├── typechart.ts      # Type effectiveness changes
+└── rulesets.ts       # Custom rules
+```
+
+## Creating a Mod
+
+<Steps>
+  <Step title="Create Mod Directory">
+    Create a new directory in `data/mods/`:
+    
+    ```bash
+    mkdir data/mods/mymod
+    ```
+  </Step>
+  
+  <Step title="Create Mod Files">
+    Create TypeScript files for the game data you want to modify.
+  </Step>
+  
+  <Step title="Reference in Formats">
+    Use your mod in a format:
+    
+    ```typescript
+    {
+      name: "[Gen 9] My Mod",
+      mod: 'mymod',  // References data/mods/mymod
+      ruleset: ['Standard'],
+    }
+    ```
+  </Step>
+</Steps>
+
+## Modifying Abilities
+
+Create `abilities.ts` to add or modify abilities:
+
+```typescript abilities.ts
+export const Abilities: import('../../../sim/dex-abilities').ModdedAbilityDataTable = {
+  // Modify existing ability
+  intimidate: {
+    inherit: true,  // Inherit base properties
+    shortDesc: "On switch-in, lowers adjacent foes' Attack and Sp. Atk by 1.",
+    onStart(pokemon) {
+      let activated = false;
+      for (const target of pokemon.adjacentFoes()) {
+        if (!activated) {
+          this.add('-ability', pokemon, 'Intimidate', 'boost');
+          activated = true;
+        }
+        if (target.volatiles['substitute']) {
+          this.add('-immune', target);
+        } else {
+          this.boost({ atk: -1, spa: -1 }, target, pokemon, null, true);
+        }
+      }
+    },
+  },
+  
+  // New custom ability
+  customability: {
+    shortDesc: "This Pokemon's moves have 1.3x power and ignore abilities.",
+    name: "Custom Ability",
+    onModifyDamage(damage, source, target, move) {
+      return this.chainModify(1.3);
+    },
+    onModifyMove(move) {
+      move.ignoreAbility = true;
+    },
+    flags: { breakable: 1 },
+    gen: 9,
+  },
+};
+```
+
+### Common Ability Hooks
+
+<Tabs>
+  <Tab title="Stat Modification">
+    ```typescript
+    onModifyAtk(atk, pokemon) {
+      return this.chainModify(1.5);
+    },
+    onModifyDef(def, pokemon) {
+      if (pokemon.status) return this.chainModify(2);
+    },
+    onModifySpA(spa, pokemon) {
+      return this.modify(spa, 1.5);
+    },
+    ```
+  </Tab>
+  
+  <Tab title="Damage Modification">
+    ```typescript
+    onBasePowerPriority: 8,
+    onBasePower(basePower, attacker, defender, move) {
+      if (move.type === 'Fire') {
+        return this.chainModify(1.5);
+      }
+    },
+    onModifyDamage(damage, source, target, move) {
+      return this.chainModify(0.75);
+    },
+    ```
+  </Tab>
+  
+  <Tab title="Battle Events">
+    ```typescript
+    onStart(pokemon) {
+      this.add('-ability', pokemon, 'Ability Name');
+    },
+    onSwitchIn(pokemon) {
+      // Triggers when switching in
+    },
+    onEnd(pokemon) {
+      // Triggers when leaving field
+    },
+    ```
+  </Tab>
+  
+  <Tab title="Move Effects">
+    ```typescript
+    onModifyMove(move, pokemon) {
+      move.ignoreAbility = true;
+      move.infiltrates = true;
+    },
+    onTryHit(target, source, move) {
+      if (move.type === 'Water') {
+        return null; // Immune
+      }
+    },
+    ```
+  </Tab>
+</Tabs>
+
+## Modifying Moves
+
+Create `moves.ts` to add or modify moves:
+
+```typescript moves.ts
+export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
+  // Modify existing move
+  tackle: {
+    inherit: true,
+    basePower: 50,  // Change base power
+    accuracy: 100,
+  },
+  
+  // New custom move
+  custommove: {
+    num: -1,
+    accuracy: 100,
+    basePower: 80,
+    category: "Physical",
+    name: "Custom Move",
+    shortDesc: "High critical hit ratio. User recovers 50% damage dealt.",
+    pp: 10,
+    priority: 0,
+    flags: { contact: 1, protect: 1, mirror: 1, heal: 1 },
+    critRatio: 2,
+    drain: [1, 2],
+    secondary: null,
+    target: "normal",
+    type: "Normal",
+    contestType: "Cool",
+  },
+  
+  // Move with custom logic
+  complexmove: {
+    num: -2,
+    accuracy: 90,
+    basePower: 0,
+    category: "Status",
+    name: "Complex Move",
+    shortDesc: "Raises Attack and Speed by 2. User faints.",
+    pp: 5,
+    priority: 0,
+    flags: { snatch: 1 },
+    onTryHit(source) {
+      if (!this.boost({ atk: 2, spe: 2 })) return null;
+      source.faint();
+    },
+    secondary: null,
+    target: "self",
+    type: "Fighting",
+  },
+};
+```
+
+### Move Properties
+
+```typescript
+{
+  num: -1,                    // Negative for custom moves
+  accuracy: 100,              // Accuracy (true = bypass checks)
+  basePower: 80,              // Base power (0 for status moves)
+  category: "Physical",       // Physical, Special, or Status
+  name: "Move Name",
+  shortDesc: "Description",
+  pp: 10,                     // Power Points
+  priority: 0,                // Priority bracket (-6 to 5)
+  flags: {                    // Move flags
+    contact: 1,               // Makes contact
+    protect: 1,               // Blocked by Protect
+    mirror: 1,                // Copied by Mirror Move
+    punch: 1,                 // Boosted by Iron Fist
+    sound: 1,                 // Sound-based move
+    bullet: 1,                // Blocked by Bulletproof
+  },
+  critRatio: 1,              // Crit rate (1 = normal, 2 = high)
+  secondary: null,            // Secondary effect
+  target: "normal",           // Targeting (normal, allAdjacent, self, etc.)
+  type: "Normal",
+  recoil: [1, 4],            // Recoil damage (1/4)
+  drain: [1, 2],             // Drain HP (1/2)
+  multihit: [2, 5],          // Hit 2-5 times
+  willCrit: true,            // Always crits
+  hasCrashDamage: true,      // Crash damage on miss
+}
+```
+
+## Modifying Items
+
+Create `items.ts` to add or modify items:
+
+```typescript items.ts
+export const Items: import('../../../sim/dex-items').ModdedItemDataTable = {
+  // Modify existing item
+  leftovers: {
+    inherit: true,
+    onResidual(pokemon) {
+      // Heal 1/8 instead of 1/16
+      this.heal(pokemon.baseMaxhp / 8);
+    },
+  },
+  
+  // New custom item
+  customitem: {
+    name: "Custom Item",
+    spritenum: 0,
+    fling: {
+      basePower: 30,
+    },
+    onModifyAtkPriority: 1,
+    onModifyAtk(atk, pokemon) {
+      if (pokemon.baseSpecies.baseSpecies === 'Pikachu') {
+        return this.chainModify(2);
+      }
+    },
+    onModifySpAPriority: 1,
+    onModifySpA(spa, pokemon) {
+      if (pokemon.baseSpecies.baseSpecies === 'Pikachu') {
+        return this.chainModify(2);
+      }
+    },
+    itemUser: ["Pikachu"],
+    num: -1,
+    gen: 9,
+    shortDesc: "If held by Pikachu, doubles Attack and Sp. Atk.",
+  },
+};
+```
+
+## Modifying Pokemon
+
+Create `pokedex.ts` to modify Pokemon:
+
+```typescript pokedex.ts
+export const Pokedex: import('../../../sim/dex-species').ModdedSpeciesDataTable = {
+  // Modify existing Pokemon
+  pikachu: {
+    inherit: true,
+    baseStats: {
+      hp: 35,
+      atk: 75,   // Buffed from 55
+      def: 40,
+      spa: 70,   // Buffed from 50  
+      spd: 50,
+      spe: 90,
+    },
+  },
+  
+  // New forme
+  pikachumega: {
+    num: 25,
+    name: "Pikachu-Mega",
+    baseSpecies: "Pikachu",
+    forme: "Mega",
+    types: ["Electric", "Fighting"],
+    baseStats: { hp: 35, atk: 105, def: 60, spa: 100, spd: 70, spe: 120 },
+    abilities: { 0: "Tough Claws" },
+    heightm: 0.4,
+    weightkg: 6.0,
+    eggGroups: ["Field", "Fairy"],
+    requiredItem: "Pikachunite",
+  },
+};
+```
+
+## Battle Scripts
+
+Create `scripts.ts` for custom battle logic:
+
+```typescript scripts.ts
+export const Scripts: ModdedBattleScriptsData = {
+  gen: 9,
+  
+  // Modify damage calculation
+  getDamage(
+    source: Pokemon, target: Pokemon, move: string | number | ActiveMove,
+    suppressMessages = false
+  ): number | undefined | null | false {
+    // Custom damage formula
+    const damage = this.getDamage(source, target, move, suppressMessages);
+    if (typeof damage === 'number') {
+      // Double all damage
+      return damage * 2;
+    }
+    return damage;
+  },
+  
+  // Battle start hook
+  onBegin() {
+    this.add('-message', 'Welcome to the custom mod!');
+  },
+  
+  // Turn start hook  
+  onResidual() {
+    // Custom per-turn effects
+    for (const pokemon of this.getAllActive()) {
+      if (pokemon.hp < pokemon.maxhp / 2) {
+        this.heal(pokemon.maxhp / 16, pokemon);
+      }
+    }
+  },
+};
+```
+
+### Common Script Hooks
+
+<CardGroup cols={2}>
+  <Card title="onBegin" icon="flag">
+    Called when battle starts
+  </Card>
+  
+  <Card title="onResidual" icon="clock">
+    Called at end of each turn
+  </Card>
+  
+  <Card title="onSwitchIn" icon="arrow-right-arrow-left">
+    Called when Pokemon switches in
+  </Card>
+  
+  <Card title="onFaint" icon="skull">
+    Called when Pokemon faints
+  </Card>
+  
+  <Card title="getDamage" icon="burst">
+    Modify damage calculation
+  </Card>
+  
+  <Card title="runMove" icon="bolt">
+    Modify move execution
+  </Card>
+</CardGroup>
+
+## Example: Gen 9 SSB Mod
+
+The Staff Super Battle mod creates custom sets for staff members:
+
+```typescript scripts.ts
+import { SSBSet } from "./random-teams";
+
+export function changeSet(context: Battle, pokemon: Pokemon, newSet: SSBSet) {
+  if (pokemon.transformed) return;
+  
+  const evs: StatsTable = {
+    hp: newSet.evs?.hp || 0,
+    atk: newSet.evs?.atk || 0,
+    def: newSet.evs?.def || 0,
+    spa: newSet.evs?.spa || 0,
+    spd: newSet.evs?.spd || 0,
+    spe: newSet.evs?.spe || 0,
+  };
+  
+  pokemon.set.evs = evs;
+  if (newSet.nature) pokemon.set.nature = newSet.nature;
+  
+  let percent = pokemon.hp / pokemon.baseMaxhp;
+  pokemon.formeChange(newSet.species, context.effect, true);
+  
+  pokemon.baseMaxhp = Math.floor(Math.floor(
+    2 * pokemon.species.baseStats.hp + pokemon.set.ivs.hp +
+    Math.floor(pokemon.set.evs.hp / 4) + 100
+  ) * pokemon.level / 100 + 10);
+  
+  const newMaxHP = pokemon.baseMaxhp;
+  pokemon.hp = Math.round(newMaxHP * percent);
+  pokemon.maxhp = newMaxHP;
+}
+```
+
+```typescript abilities.ts  
+export const Abilities: ModdedAbilityDataTable = {
+  // Custom staff ability
+  fortifiedmetal: {
+    shortDesc: "This Pokemon's weight is doubled and Attack is 1.5x when statused.",
+    name: "Fortified Metal",
+    onModifyWeightPriority: 1,
+    onModifyWeight(weighthg) {
+      return weighthg * 2;
+    },
+    onModifyAtkPriority: 5,
+    onModifyAtk(atk, pokemon) {
+      if (pokemon.status) {
+        return this.chainModify(1.5);
+      }
+    },
+    flags: { breakable: 1 },
+    gen: 9,
+  },
+};
+```
+
+## Type Chart Modifications
+
+Create `typechart.ts` to change type effectiveness:
+
+```typescript typechart.ts
+export const TypeChart: import('../../../sim/dex-data').ModdedTypeDataTable = {
+  // Make Fire resist Fairy
+  Fire: {
+    inherit: true,
+    damageTaken: {
+      Fairy: 2,  // 0 = normal, 1 = weak, 2 = resist, 3 = immune
+      // Other types inherited from base
+    },
+  },
+  
+  // Add new type
+  Sound: {
+    damageTaken: {
+      Bug: 0,
+      Dark: 0,
+      Dragon: 0,
+      Electric: 0,
+      Fairy: 2,
+      Fighting: 0,
+      Fire: 0,
+      Flying: 2,
+      Ghost: 0,
+      Grass: 0,
+      Ground: 0,
+      Ice: 0,
+      Normal: 0,
+      Poison: 0,
+      Psychic: 1,
+      Rock: 1,
+      Steel: 2,
+      Water: 0,
+      Sound: 2,
+    },
+  },
+};
+```
+
+## Testing Your Mod
+
+<Steps>
+  <Step title="Build">
+    Compile TypeScript changes:
+    
+    ```bash
+    ./build
+    ```
+  </Step>
+  
+  <Step title="Create Format">
+    Add format using your mod in `config/formats.ts`:
+    
+    ```typescript
+    {
+      name: "[Gen 9] My Mod",
+      mod: 'mymod',
+      ruleset: ['Standard'],
+    }
+    ```
+  </Step>
+  
+  <Step title="Test Battle">
+    Challenge someone to test:
+    
+    ```text
+    /challenge username, [Gen 9] My Mod
+    ```
+  </Step>
+</Steps>
+
+## Common Mod Examples
+
+### Stat Boost Mod
+
+```typescript scripts.ts
+export const Scripts: ModdedBattleScriptsData = {
+  onBegin() {
+    // Double all Pokemon stats
+    for (const pokemon of this.getAllPokemon()) {
+      pokemon.baseStats = {
+        hp: pokemon.species.baseStats.hp * 2,
+        atk: pokemon.species.baseStats.atk * 2,
+        def: pokemon.species.baseStats.def * 2,
+        spa: pokemon.species.baseStats.spa * 2,
+        spd: pokemon.species.baseStats.spd * 2,
+        spe: pokemon.species.baseStats.spe * 2,
+      };
+    }
+  },
+};
+```
+
+### Auto-Weather Mod
+
+```typescript scripts.ts
+export const Scripts: ModdedBattleScriptsData = {
+  onBegin() {
+    // Random weather at start
+    const weathers = ['raindance', 'sunnyday', 'sandstorm', 'snow'];
+    const weather = this.sample(weathers);
+    this.field.setWeather(weather);
+  },
+};
+```
+
+### Inverse Battle Mod
+
+```typescript scripts.ts
+export const Scripts: ModdedBattleScriptsData = {
+  onNegateImmunity(pokemon, type) {
+    // No immunities in inverse battles
+    return false;
+  },
+  getEffectiveness(type, target) {
+    // Invert effectiveness
+    const totalTypeMod = target.runEffectiveness(type);
+    return -totalTypeMod;
+  },
+};
+```
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card title="Abilities Source" icon="file-code" href="https://github.com/smogon/pokemon-showdown/blob/master/data/abilities.ts">
+    Reference for ability implementation
+  </Card>
+  
+  <Card title="Moves Source" icon="file-code" href="https://github.com/smogon/pokemon-showdown/blob/master/data/moves.ts">
+    Reference for move implementation
+  </Card>
+  
+  <Card title="Example Mods" icon="folder" href="https://github.com/smogon/pokemon-showdown/tree/master/data/mods">
+    Browse existing mods for examples
+  </Card>
+  
+  <Card title="Battle Engine" icon="gears" href="https://github.com/smogon/pokemon-showdown/tree/master/sim">
+    Simulator source code
+  </Card>
+</CardGroup>

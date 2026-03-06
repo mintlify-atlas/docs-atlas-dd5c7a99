@@ -1,0 +1,597 @@
+---
+title: Choice Requests
+description: Understanding and responding to battle decision requests
+---
+
+During battles, the server sends choice requests asking players to make decisions (move, switch, or Team Preview selections). This page documents the request format and how to respond.
+
+## Request Message
+
+```text
+|request|REQUEST
+```
+
+A JSON object containing:
+- `REQUEST.active` - Information about active Pokémon
+- `REQUEST.side` - Information about your team
+- `REQUEST.rqid` - Optional request ID (only when using server, not direct simulator)
+
+## Example Request Object
+
+```json
+{
+  "active": [
+    {
+      "moves": [
+        {
+          "move": "Light Screen",
+          "id": "lightscreen",
+          "pp": 48,
+          "maxpp": 48,
+          "target": "allySide",
+          "disabled": false
+        },
+        {
+          "move": "U-turn",
+          "id": "uturn",
+          "pp": 32,
+          "maxpp": 32,
+          "target": "normal",
+          "disabled": false
+        },
+        {
+          "move": "Knock Off",
+          "id": "knockoff",
+          "pp": 32,
+          "maxpp": 32,
+          "target": "normal",
+          "disabled": false
+        },
+        {
+          "move": "Roost",
+          "id": "roost",
+          "pp": 16,
+          "maxpp": 16,
+          "target": "self",
+          "disabled": false
+        }
+      ]
+    }
+  ],
+  "side": {
+    "name": "Zarel",
+    "id": "p2",
+    "pokemon": [
+      {
+        "ident": "p2: Ledian",
+        "details": "Ledian, L83, M",
+        "condition": "227/227",
+        "active": true,
+        "stats": {
+          "atk": 106,
+          "def": 131,
+          "spa": 139,
+          "spd": 230,
+          "spe": 189
+        },
+        "moves": [
+          "lightscreen",
+          "uturn",
+          "knockoff",
+          "roost"
+        ],
+        "baseAbility": "swarm",
+        "item": "leftovers",
+        "pokeball": "pokeball",
+        "ability": "swarm"
+      },
+      {
+        "ident": "p2: Pyukumuku",
+        "details": "Pyukumuku, L83, F",
+        "condition": "227/227",
+        "active": false,
+        "stats": {
+          "atk": 104,
+          "def": 263,
+          "spa": 97,
+          "spd": 263,
+          "spe": 56
+        },
+        "moves": [
+          "recover",
+          "counter",
+          "lightscreen",
+          "reflect"
+        ],
+        "baseAbility": "innardsout",
+        "item": "lightclay",
+        "pokeball": "pokeball",
+        "ability": "innardsout"
+      }
+    ]
+  },
+  "rqid": 3
+}
+```
+
+## Request Structure
+
+### Active Pokémon Data
+
+`REQUEST.active` is an array (one element per active slot) containing:
+
+#### Move Information
+
+```json
+{
+  "move": "Thunderbolt",
+  "id": "thunderbolt",
+  "pp": 24,
+  "maxpp": 24,
+  "target": "normal",
+  "disabled": false
+}
+```
+
+- `move` - Display name
+- `id` - Internal identifier
+- `pp` - Current PP
+- `maxpp` - Maximum PP
+- `target` - Target type (`normal`, `self`, `allySide`, etc.)
+- `disabled` - Whether the move is currently disabled
+
+### Side Data
+
+`REQUEST.side` contains:
+
+- `name` - Player name
+- `id` - Player ID (`p1`, `p2`, etc.)
+- `pokemon` - Array of all team Pokémon
+
+#### Pokémon Object
+
+```json
+{
+  "ident": "p2: Ledian",
+  "details": "Ledian, L83, M",
+  "condition": "227/227",
+  "active": true,
+  "stats": {
+    "atk": 106,
+    "def": 131,
+    "spa": 139,
+    "spd": 230,
+    "spe": 189
+  },
+  "moves": ["lightscreen", "uturn", "knockoff", "roost"],
+  "baseAbility": "swarm",
+  "item": "leftovers",
+  "pokeball": "pokeball",
+  "ability": "swarm"
+}
+```
+
+- `ident` - Pokémon identifier
+- `details` - Species, level, gender (see [Battle Protocol](/protocol/battle-protocol#details-string))
+- `condition` - Current HP and status (`227/227` or `150/227 par`)
+- `active` - Whether currently on the field
+- `stats` - Current stat values
+- `moves` - Array of move IDs
+- `baseAbility` - Original ability
+- `ability` - Current ability
+- `item` - Held item
+- `pokeball` - Pokéball type
+
+## Sending Decisions
+
+### Using the Client
+
+```text
+/choose CHOICE
+```
+
+or for moves and switches:
+
+```text
+/CHOICE
+```
+
+### Using the Simulator API
+
+```text
+>p1 CHOICE
+>p2 CHOICE
+```
+
+### With Request ID
+
+When using a Pokémon Showdown server, append the request ID:
+
+```text
+/choose CHOICE|RQID
+```
+
+This ensures the decision matches the correct request, preventing issues with "Undo".
+
+## Choice Syntax
+
+### Team Preview
+
+```text
+team TEAMSPEC
+```
+
+`TEAMSPEC` is a list of Pokémon slot numbers.
+
+**Examples:**
+- `team 213456` - Swap first two Pokémon
+- `team 5231` - Select first 4 Pokémon in custom order (VGC)
+- `team 2, 1, 3, 4, 5, 6, 7, 8, 9, 10` - With 10+ Pokémon, use commas
+
+### Auto-Choose
+
+```text
+default
+```
+
+Automatically selects the first legal choice.
+
+<Note>
+This is what happens in VGC when you run out of Move Time.
+</Note>
+
+### Undo
+
+```text
+undo
+```
+
+Cancels a previously-made choice (only if opponent hasn't chosen yet).
+
+## Singles Decisions
+
+In Singles, send a single `POKEMONCHOICE`:
+
+### Move
+
+```text
+move MOVESPEC
+```
+
+### Move with Mega Evolution
+
+```text
+move MOVESPEC mega
+```
+
+### Move with Z-Move
+
+```text
+move MOVESPEC zmove
+```
+
+### Move with Dynamax
+
+```text
+move MOVESPEC max
+```
+
+### Switch
+
+```text
+switch SWITCHSPEC
+```
+
+### Skip (in Doubles/Triples)
+
+```text
+pass
+```
+
+Indicates a fainted Pokémon slot (can be omitted).
+
+## Doubles/Triples Decisions
+
+Delimit decisions with `,`:
+
+```text
+POKEMONCHOICE, POKEMONCHOICE
+```
+
+**Example:**
+```text
+move Thunderbolt 1 mega, move Helping Hand -1
+```
+
+This makes:
+- First Pokémon: Mega Evolve and use Thunderbolt at opponent slot 1
+- Second Pokémon: Use Helping Hand on ally slot 1
+
+## Move Specification
+
+### MOVESPEC Format
+
+```text
+MOVESLOTSPEC [TARGETSPEC]
+```
+
+### MOVESLOTSPEC
+
+Either:
+- Move name (case/space insensitive): `Thunderbolt`, `thunderbolt`, `Thunder Bolt`
+- 1-based slot number: `1`, `2`, `3`, `4`
+
+### TARGETSPEC (Doubles/Triples Only)
+
+1-based slot number with prefix:
+- `+N` - Opponent slot (e.g., `+1`, `+2`)
+- `-N` - Ally slot (e.g., `-1`, `-2`)
+
+#### Slot Layout
+
+**Triples:**
+```text
++3 +2 +1
+-1 -2 -3
+```
+
+**Doubles:**
+```text
++2 +1
+-1 -2
+```
+
+<Note>
+In Singles, target specification is unnecessary (never choose target).
+</Note>
+
+### Examples
+
+```text
+move Thunderbolt
+move thunderbolt
+move 1
+move Thunder Bolt +1
+move 2 -1 mega
+move Flamethrower +2 zmove
+```
+
+## Switch Specification
+
+### SWITCHSPEC Format
+
+Either:
+- Pokémon nickname or species name
+- 1-based slot number
+
+<Warning>
+If multiple Pokémon share the same nickname/species, using the name selects the first unfainted one. Use slot numbers for specific selection.
+</Warning>
+
+### Examples
+
+```text
+switch Pikachu
+switch pikachu
+switch 2
+switch Sparky
+```
+
+## Complete Examples
+
+### Singles
+
+<CodeGroup>
+```text Move
+move Thunderbolt
+```
+
+```text Move with Mega
+move Dragon Claw mega
+```
+
+```text Switch
+switch 3
+```
+
+```text Z-Move
+move Thunderbolt zmove
+```
+</CodeGroup>
+
+### Doubles
+
+<CodeGroup>
+```text Both Pokémon Attack
+move Thunderbolt +1, move Earthquake +2
+```
+
+```text Mega + Support
+move Dragon Claw +1 mega, move Helping Hand -1
+```
+
+```text Attack + Switch
+move Flamethrower +2, switch 4
+```
+
+```text Protect Both
+move Protect, move Protect
+```
+</CodeGroup>
+
+### Team Preview
+
+<CodeGroup>
+```text Standard Order
+team 123456
+```
+
+```text Swap First Two
+team 213456
+```
+
+```text VGC (4 Pokémon)
+team 2314
+```
+
+```text Custom Order
+team 531246
+```
+</CodeGroup>
+
+## Error Handling
+
+### Invalid Choice
+
+```text
+|error|[Invalid choice] MESSAGE
+```
+
+You must send a different decision.
+
+<Note>
+This occurs for invalid syntax or impossible choices.
+</Note>
+
+### Unavailable Choice
+
+```text
+|error|[Unavailable choice] MESSAGE
+|request|REQUEST
+```
+
+Your choice is invalid due to newly revealed information (Imprison, trapping effects, etc.).
+
+A new request is provided with updated information.
+
+### Common Errors
+
+<Warning>
+**Trapped**: Cannot switch when trapped by Mean Look, Shadow Tag, etc.
+
+**Disabled**: Cannot use moves that are disabled, out of PP, or affected by Taunt/Torment.
+
+**Invalid Target**: Target doesn't exist or is invalid for the move.
+</Warning>
+
+## Decision Flow
+
+<Steps>
+  <Step title="Receive Request">
+    Parse the `|request|REQUEST` message and extract relevant data.
+  </Step>
+  
+  <Step title="Analyze Options">
+    Check available moves (PP, disabled status) and switch options.
+  </Step>
+  
+  <Step title="Make Decision">
+    Construct the appropriate `CHOICE` string based on strategy.
+  </Step>
+  
+  <Step title="Send Choice">
+    Submit via `/choose CHOICE|RQID` (or `>p1 CHOICE` for direct simulator).
+  </Step>
+  
+  <Step title="Handle Errors">
+    If you receive an error, adjust your choice and resubmit.
+  </Step>
+</Steps>
+
+## Special Cases
+
+### Forced Switches
+
+When a Pokémon faints, you'll receive a request with `REQUEST.forceSwitch`:
+
+```json
+{
+  "forceSwitch": [true],
+  "side": { /* ... */ }
+}
+```
+
+Respond with:
+```text
+switch SWITCHSPEC
+```
+
+### Wait State
+
+If your decision depends on opponent's choice (e.g., Pursuit), you may need to wait. The request will indicate this.
+
+### Mega Evolution Eligibility
+
+The request includes `canMegaEvo` if Mega Evolution is available:
+
+```json
+{
+  "active": [{
+    "moves": [ /* ... */ ],
+    "canMegaEvo": true
+  }]
+}
+```
+
+### Z-Move Eligibility
+
+The request includes `canZMove` array indicating which moves can become Z-Moves:
+
+```json
+{
+  "active": [{
+    "moves": [ /* ... */ ],
+    "canZMove": [
+      {"move": "Gigavolt Havoc", "target": "normal"},
+      null,
+      null,
+      {"move": "Savage Spin-Out", "target": "normal"}
+    ]
+  }]
+}
+```
+
+### Dynamax Eligibility
+
+The request includes `canDynamax` if Dynamax is available:
+
+```json
+{
+  "active": [{
+    "moves": [ /* ... */ ],
+    "canDynamax": true,
+    "maxMoves": {
+      "maxMoves": [
+        {"move": "Max Lightning", "target": "normal"},
+        {"move": "Max Airstream", "target": "normal"},
+        {"move": "Max Darkness", "target": "normal"},
+        {"move": "Max Airstream", "target": "normal"}
+      ]
+    }
+  }]
+}
+```
+
+## Debugging Tips
+
+<Note>
+The official client logs all decisions in the JavaScript console (F12). This helps you see the exact syntax being used.
+</Note>
+
+### Common Issues
+
+1. **Wrong slot numbers**: Remember slots are 1-based, not 0-based
+2. **Missing target**: In Doubles/Triples, many moves require explicit targets
+3. **Invalid RQID**: Make sure you're using the current `rqid`, not an old one
+4. **Case sensitivity**: Move names are case-insensitive, but IDs must match exactly
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Battle Protocol" href="/protocol/battle-protocol" icon="swords">
+    Learn about battle messages and game state updates
+  </Card>
+  <Card title="Team Format" href="/teams/packed-format" icon="users">
+    Understand how teams are encoded for battles
+  </Card>
+</CardGroup>

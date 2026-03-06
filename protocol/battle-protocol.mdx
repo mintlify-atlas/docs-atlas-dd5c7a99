@@ -1,0 +1,849 @@
+---
+title: Battle Protocol
+description: Messages and events specific to Pokémon battles in the simulator
+---
+
+Battle rooms use a specialized protocol for communicating game state, moves, switches, and other battle events. This page documents the battle-specific message types.
+
+## Battle Initialization
+
+The beginning of a battle includes player information, team preview, and game rules.
+
+### Example Battle Start
+
+```text
+|player|p1|Anonycat|60|1200
+|player|p2|Anonybird|113|1300
+|teamsize|p1|4
+|teamsize|p2|5
+|gametype|doubles
+|gen|7
+|tier|[Gen 7] Doubles Ubers
+|rule|Species Clause: Limit one of each Pokémon
+|rule|OHKO Clause: OHKO moves are banned
+|rule|Moody Clause: Moody is banned
+|rule|Evasion Abilities Clause: Evasion abilities are banned
+|rule|Evasion Moves Clause: Evasion moves are banned
+|rule|Endless Battle Clause: Forcing endless battles is banned
+|rule|HP Percentage Mod: HP is shown in percentages
+|clearpoke
+|poke|p1|Pikachu, L59, F|item
+|poke|p1|Kecleon, M|item
+|poke|p1|Jynx, F|item
+|poke|p1|Mewtwo|item
+|poke|p2|Hoopa-Unbound|
+|poke|p2|Smeargle, L1, F|item
+|poke|p2|Forretress, L31, F|
+|poke|p2|Groudon, L60|item
+|poke|p2|Feebas, L1, M|
+|teampreview
+|
+|start
+```
+
+### Player
+
+```text
+|player|PLAYER|USERNAME|AVATAR|RATING
+```
+
+- `PLAYER` - `p1`, `p2` (or `p3`, `p4` in 4-player battles)
+- `USERNAME` - Player's username
+- `AVATAR` - Avatar identifier (usually a number)
+- `RATING` - Elo rating (only in rated battles, otherwise blank)
+
+### Team Size
+
+```text
+|teamsize|PLAYER|NUMBER
+```
+
+Indicates the number of Pokémon the player starts with.
+
+### Game Type
+
+```text
+|gametype|GAMETYPE
+```
+
+`GAMETYPE` is one of:
+- `singles`
+- `doubles`
+- `triples`
+- `multi`
+- `freeforall`
+
+### Generation
+
+```text
+|gen|GENNUM
+```
+
+Generation number from 1 to 9.
+
+<Note>
+Stadium counts as its respective gen, Let's Go counts as 7, and modded formats use their base gen.
+</Note>
+
+### Tier
+
+```text
+|tier|FORMATNAME
+```
+
+The name of the format being played.
+
+### Rated
+
+```text
+|rated
+```
+
+Present if the game affects ladder rating.
+
+```text
+|rated|MESSAGE
+```
+
+Present if the game is official (like tournament games).
+
+### Rule
+
+```text
+|rule|RULE: DESCRIPTION
+```
+
+Appears multiple times, once for each active rule.
+
+## Team Preview
+
+### Clear Poke
+
+```text
+|clearpoke
+```
+
+Marks the start of Team Preview.
+
+### Poke
+
+```text
+|poke|PLAYER|DETAILS|ITEM
+```
+
+Declares a Pokémon for Team Preview.
+
+- `PLAYER` - Player ID (`p1`, `p2`, etc.)
+- `DETAILS` - Pokémon description (see "Identifying Pokémon" below)
+- `ITEM` - `item` if holding an item, blank otherwise
+
+<Note>
+Forme and shininess are hidden in Team Preview, unlike in `|switch|` messages.
+</Note>
+
+### Team Preview End
+
+```text
+|teampreview
+```
+
+Marks the end of Team Preview data.
+
+### Start
+
+```text
+|start
+```
+
+Indicates the battle has started.
+
+## Identifying Pokémon
+
+### Pokémon ID Format
+
+Pokémon are identified by `POSITION: NAME`:
+
+- `POSITION` = Player (`p1`, `p2`) + position letter (`a` in singles)
+- `NAME` = Nickname (or species if no nickname)
+
+**Examples:**
+- `p1a: Sparky` - Pokémon in player 1's active slot named Sparky
+- `p1: Dragonite` - Inactive Dragonite (no position letter)
+
+### Position Layout
+
+**Doubles (Player 1's perspective):**
+```text
+p2b p2a
+p1a p1b
+```
+
+**Doubles (Player 2's perspective):**
+```text
+p1b p1a
+p2a p2b
+```
+
+**Multi (Player 1's perspective):**
+```text
+p4b p2a
+p1a p3b
+```
+
+### Details String
+
+`DETAILS` is comma-separated information:
+- `SPECIES` - Always present
+- `, L##` - If not level 100
+- `, M` - If male
+- `, F` - If female
+- `, shiny` - If shiny
+- `, tera:TYPE` - If Terastallized (Gen 9)
+
+**Examples:**
+- `Deoxys-Speed` - Level 100 genderless non-shiny
+- `Sawsbuck, L50, F, shiny` - Level 50 shiny female
+- `Arceus-*` - Arceus in Team Preview (forme hidden)
+
+## Battle Progress
+
+### Spacer
+
+```text
+|
+```
+
+Clears the message bar and adds a spacer to battle history.
+
+### Request
+
+```text
+|request|REQUEST
+```
+
+JSON object requesting a choice (move or switch). See [Choice Requests](/protocol/choice-requests) for details.
+
+### Inactive Timer
+
+```text
+|inactive|MESSAGE
+```
+
+Timer-related message (displayed in red). Timer is currently on.
+
+```text
+|inactiveoff|MESSAGE
+```
+
+Timer-related message. Timer is currently off.
+
+### Upkeep
+
+```text
+|upkeep
+```
+
+Signals the upkeep phase where field condition timers are updated.
+
+### Turn
+
+```text
+|turn|NUMBER
+```
+
+It is now turn `NUMBER`.
+
+### Win
+
+```text
+|win|USER
+```
+
+`USER` won the battle.
+
+### Tie
+
+```text
+|tie
+```
+
+The battle ended in a tie.
+
+### Timestamp
+
+```text
+|t:|TIMESTAMP
+```
+
+UNIX timestamp for determining when events occurred.
+
+## Major Actions
+
+Major actions represent significant battle events like moves, switches, and fainting.
+
+### Move
+
+```text
+|move|POKEMON|MOVE|TARGET
+```
+
+The specified Pokémon used `MOVE` at `TARGET`.
+
+<Note>
+For moves with multiple targets or no target, `TARGET` should be ignored.
+</Note>
+
+**Tags:**
+- `|[miss]` - The move missed
+- `|[still]` - Suppress animation
+- `|[anim] MOVE2` - Use animation of `MOVE2` instead
+
+**Example:**
+```text
+|move|p1a: Pikachu|Thunderbolt|p2a: Charizard
+```
+
+### Switch
+
+```text
+|switch|POKEMON|DETAILS|HP STATUS
+```
+
+A Pokémon switched in (intentional).
+
+```text
+|drag|POKEMON|DETAILS|HP STATUS
+```
+
+A Pokémon was forced to switch (Whirlwind, Roar, etc.).
+
+- `POKEMON|DETAILS` - Identifies the Pokémon
+- `HP` - Current HP as fraction (`CURRENT/MAX` for your Pokémon, `/100` or `/48` for opponent)
+- `STATUS` - Status condition (`slp`, `par`, etc.) or blank
+
+**Example:**
+```text
+|switch|p1a: Garchomp|Garchomp, L78, M|248/248
+```
+
+### Forme Change
+
+```text
+|detailschange|POKEMON|DETAILS|HP STATUS
+```
+
+Permanent forme change (Mega Evolution, frozen Shaymin-Sky).
+
+```text
+|-formechange|POKEMON|SPECIES|HP STATUS
+```
+
+Temporary forme change.
+
+### Replace
+
+```text
+|replace|POKEMON|DETAILS|HP STATUS
+```
+
+Illusion ended for the specified Pokémon.
+
+<Warning>
+`POKEMON` uses the NEW Pokémon ID (Zoroark's nickname). Everything you knew about the previous Pokémon is wrong.
+</Warning>
+
+### Swap
+
+```text
+|swap|POKEMON|POSITION
+```
+
+Moves active `POKEMON` to `POSITION` (0-indexed from left).
+
+### Can't
+
+```text
+|cant|POKEMON|REASON
+```
+
+```text
+|cant|POKEMON|REASON|MOVE
+```
+
+Pokémon couldn't perform a move due to `REASON` (paralysis, Disable, etc.).
+
+### Faint
+
+```text
+|faint|POKEMON
+```
+
+The Pokémon fainted.
+
+## Minor Actions
+
+Minor actions represent smaller battle events like damage, healing, and status changes.
+
+<Note>
+Minor actions are usually displayed in small font in the official client.
+</Note>
+
+### Fail
+
+```text
+|-fail|POKEMON|ACTION
+```
+
+The `ACTION` failed against `POKEMON` due to its own mechanics.
+
+### Block
+
+```text
+|-block|POKEMON|EFFECT|MOVE|ATTACKER
+```
+
+An effect targeting `POKEMON` was blocked by `EFFECT`.
+
+<Note>
+`|[of]SOURCE` may note the owner of `EFFECT` (e.g., ally with Aroma Veil).
+</Note>
+
+### Miss
+
+```text
+|-miss|SOURCE|TARGET
+```
+
+Move used by `SOURCE` missed `TARGET`.
+
+### Damage
+
+```text
+|-damage|POKEMON|HP STATUS
+```
+
+Pokémon took damage and is now at `HP STATUS`.
+
+<Warning>
+If `HP` is 0, `STATUS` should be ignored (currently `fnt` but may change).
+</Warning>
+
+### Heal
+
+```text
+|-heal|POKEMON|HP STATUS
+```
+
+Same as `-damage`, but for healing.
+
+### Set HP
+
+```text
+|-sethp|POKEMON|HP
+```
+
+Pokémon now has `HP` hit points.
+
+### Status
+
+```text
+|-status|POKEMON|STATUS
+```
+
+Pokémon was inflicted with `STATUS`.
+
+```text
+|-curestatus|POKEMON|STATUS
+```
+
+Pokémon recovered from `STATUS`.
+
+```text
+|-cureteam|POKEMON
+```
+
+Pokémon used a move that cures its team (Heal Bell, Aromatherapy).
+
+## Stat Changes
+
+### Boost
+
+```text
+|-boost|POKEMON|STAT|AMOUNT
+```
+
+Pokémon gained `AMOUNT` stages in `STAT`.
+
+`STAT` abbreviations:
+- `atk` - Attack
+- `def` - Defense
+- `spa` - Special Attack
+- `spd` - Special Defense
+- `spe` - Speed
+- `accuracy` - Accuracy
+- `evasion` - Evasion
+
+### Unboost
+
+```text
+|-unboost|POKEMON|STAT|AMOUNT
+```
+
+Same as `-boost`, but for negative stat changes.
+
+### Set Boost
+
+```text
+|-setboost|POKEMON|STAT|AMOUNT
+```
+
+`STAT` is set to `AMOUNT` (Anger Point, Belly Drum).
+
+### Swap Boosts
+
+```text
+|-swapboost|SOURCE|TARGET|STATS
+```
+
+Swaps boosts in `STATS` between `SOURCE` and `TARGET`.
+
+`STATS` is comma-separated list (e.g., `atk,def,spe`).
+
+### Other Boost Operations
+
+```text
+|-invertboost|POKEMON
+```
+Invert all boosts (Topsy-Turvy).
+
+```text
+|-clearboost|POKEMON
+```
+Clear all boosts (Clear Smog).
+
+```text
+|-clearallboost
+```
+Clear all boosts from all Pokémon (Haze).
+
+```text
+|-clearpositiveboost|TARGET|POKEMON|EFFECT
+```
+Clear positive boosts (Spectral Thief).
+
+```text
+|-clearnegativeboost|POKEMON
+```
+Clear negative boosts (Z-move effect).
+
+```text
+|-copyboost|SOURCE|TARGET
+```
+Copy boosts from `SOURCE` to `TARGET` (Psych Up).
+
+## Field Conditions
+
+### Weather
+
+```text
+|-weather|WEATHER
+```
+
+Indicates current weather.
+
+<Note>
+`|[upkeep]` means weather was active previously and continues. Otherwise, weather just changed or expired (`none`).
+</Note>
+
+### Field Start/End
+
+```text
+|-fieldstart|CONDITION
+```
+
+Field condition started (Trick Room, Grassy Terrain).
+
+```text
+|-fieldend|CONDITION
+```
+
+Field condition ended.
+
+### Side Conditions
+
+```text
+|-sidestart|SIDE|CONDITION
+```
+
+Side condition started (Tailwind, Stealth Rock, Reflect).
+
+```text
+|-sideend|SIDE|CONDITION
+```
+
+Side condition ended.
+
+```text
+|-swapsideconditions
+```
+
+Side conditions swapped (Court Change).
+
+## Volatile Status
+
+### Start
+
+```text
+|-start|POKEMON|EFFECT
+```
+
+[Volatile status](https://bulbapedia.bulbagarden.net/wiki/Status_condition#Volatile_status) inflicted (confusion, Taunt, Substitute).
+
+### End
+
+```text
+|-end|POKEMON|EFFECT
+```
+
+Volatile status from `EFFECT` ended.
+
+## Battle Effectiveness
+
+```text
+|-crit|POKEMON
+```
+Critical hit against `POKEMON`.
+
+```text
+|-supereffective|POKEMON
+```
+Super effective against `POKEMON`.
+
+```text
+|-resisted|POKEMON
+```
+Not very effective against `POKEMON`.
+
+```text
+|-immune|POKEMON
+```
+`POKEMON` was immune.
+
+## Items
+
+### Item Revealed
+
+```text
+|-item|POKEMON|ITEM|[from]EFFECT
+```
+
+Item changed or revealed due to move/ability.
+
+```text
+|-item|POKEMON|ITEM
+```
+
+Item announced on switch-in (Air Balloon).
+
+### End Item
+
+```text
+|-enditem|POKEMON|ITEM|[from]EFFECT
+```
+
+Item destroyed by move/ability (Knock Off).
+
+<Note>
+`|[silent]` if ownership changed (Thief, Trick).
+</Note>
+
+```text
+|-enditem|POKEMON|ITEM
+```
+
+Item consumed (Berry, Air Balloon).
+
+<Note>
+Berries include `|[eat]` modifier.
+</Note>
+
+## Abilities
+
+### Ability Revealed
+
+```text
+|-ability|POKEMON|ABILITY|[from]EFFECT
+```
+
+Ability changed due to move/ability.
+
+<Note>
+Skill Swap doesn't send this to avoid revealing allies' abilities in Double/Triple battles.
+</Note>
+
+```text
+|-ability|POKEMON|ABILITY
+```
+
+Ability announced on switch-in with long-term effect (Mold Breaker, Neutralizing Gas).
+
+### End Ability
+
+```text
+|-endability|POKEMON
+```
+
+Ability suppressed by Gastro Acid.
+
+## Transformations
+
+### Transform
+
+```text
+|-transform|POKEMON|SPECIES
+```
+
+Pokémon transformed into `SPECIES` (Transform move or Imposter).
+
+### Mega Evolution
+
+```text
+|-mega|POKEMON|MEGASTONE
+```
+
+Pokémon Mega Evolved using `MEGASTONE`.
+
+### Primal Reversion
+
+```text
+|-primal|POKEMON
+```
+
+Pokémon reverted to primal forme.
+
+### Ultra Burst
+
+```text
+|-burst|POKEMON|SPECIES|ITEM
+```
+
+Pokémon Ultra Burst into `SPECIES` using `ITEM`.
+
+### Z-Move
+
+```text
+|-zpower|POKEMON
+```
+
+Pokémon used Z-move version of its move.
+
+```text
+|-zbroken|POKEMON
+```
+
+Z-move broke through Protect and hit `POKEMON`.
+
+## Miscellaneous
+
+### Activate
+
+```text
+|-activate|EFFECT
+```
+
+Miscellaneous effect activated (for effects without better descriptors).
+
+### Hint
+
+```text
+|-hint|MESSAGE
+```
+
+Displays `MESSAGE` in parentheses to explain why certain actions occurred.
+
+### Center
+
+```text
+|-center
+```
+
+In Triple Battles, Pokémon automatically centered when only one remains per side.
+
+### Message
+
+```text
+|-message|MESSAGE
+```
+
+Miscellaneous message (primarily for custom mods and rule clauses).
+
+### Combine
+
+```text
+|-combine
+```
+
+Move combined with another (Fire Pledge + Grass Pledge).
+
+### Waiting
+
+```text
+|-waiting|SOURCE|TARGET
+```
+
+`SOURCE` is waiting for `TARGET` (Pledge moves).
+
+### Prepare
+
+```text
+|-prepare|ATTACKER|MOVE
+```
+
+```text
+|-prepare|ATTACKER|MOVE|DEFENDER
+```
+
+Pokémon preparing to use charge move (Dig, Fly, Sky Drop).
+
+### Must Recharge
+
+```text
+|-mustrecharge|POKEMON
+```
+
+Pokémon must recharge (Hyper Beam).
+
+### Hit Count
+
+```text
+|-hitcount|POKEMON|NUM
+```
+
+Multi-hit move hit `NUM` times.
+
+### Single Move
+
+```text
+|-singlemove|POKEMON|MOVE
+```
+
+Temporary effect lasting the duration of move (Grudge, Destiny Bond).
+
+### Single Turn
+
+```text
+|-singleturn|POKEMON|MOVE
+```
+
+Temporary effect lasting the duration of turn (Protect, Focus Punch, Roost).
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Choice Requests" href="/protocol/choice-requests" icon="hand-pointer">
+    Learn how to respond to battle requests
+  </Card>
+  <Card title="Client-Server Messages" href="/protocol/client-server" icon="comments">
+    Review non-battle protocol messages
+  </Card>
+</CardGroup>

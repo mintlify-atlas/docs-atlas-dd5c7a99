@@ -1,0 +1,538 @@
+---
+title: Client-Server Messages
+description: Documentation for messages between Pokémon Showdown clients and servers
+---
+
+This page documents the message types used for communication between clients and servers, including room initialization, chat, authentication, and global events.
+
+## User Representation
+
+`USER` represents a user with their rank as the first character (users with no rank use a space), followed by their username.
+
+Optionally, `USER` may be appended with `@` followed by a status message, or `@!` to indicate the user is away.
+
+## Room Initialization
+
+### Init
+
+```text
+|init|ROOMTYPE
+```
+
+The first message received when joining a room. `ROOMTYPE` is one of:
+- `chat` - A chat room
+- `battle` - A battle room
+
+### Title
+
+```text
+|title|TITLE
+```
+
+Sets the room title. The title is not guaranteed to resemble the room ID.
+
+<Note>
+For example, room `battle-gen7uu-779767714` could have title `Alice vs. Bob`.
+</Note>
+
+### Users List
+
+```text
+|users|USERLIST
+```
+
+Sent when joining chat rooms. `USERLIST` is a comma-separated list of `USER`s.
+
+## Room Messages
+
+### Raw Message
+
+```text
+||MESSAGE
+```
+or
+```text
+MESSAGE
+```
+
+Displays `MESSAGE` directly in the room log.
+
+### HTML Message
+
+```text
+|html|HTML
+```
+
+Displays sanitized HTML directly in the room log.
+
+### Updatable HTML
+
+```text
+|uhtml|NAME|HTML
+```
+
+Displays HTML that can be updated later (used for polls, etc.).
+
+```text
+|uhtmlchange|NAME|HTML
+```
+
+Updates the HTML of a previous `|uhtml|` message.
+
+### Join
+
+```text
+|join|USER
+|j|USER
+|J|USER
+```
+
+`USER` joined the room.
+
+<Note>
+- Lowercase `j` is for normal display
+- Uppercase `J` indicates high-frequency events that should not be displayed inline
+</Note>
+
+### Leave
+
+```text
+|leave|USER
+|l|USER
+|L|USER
+```
+
+`USER` left the room.
+
+### Name Change
+
+```text
+|name|USER|OLDID
+|n|USER|OLDID
+|N|USER|OLDID
+```
+
+A user changed their name to `USER` from `OLDID`.
+
+### Chat
+
+```text
+|chat|USER|MESSAGE
+|c|USER|MESSAGE
+```
+
+`USER` said `MESSAGE`.
+
+<Warning>
+`MESSAGE` can contain `|` characters, so you cannot simply split by `|` and take the fourth element.
+</Warning>
+
+#### Special Messages
+
+If `MESSAGE` starts with `/`, it's a special command:
+- `/me TEXT` - Action message
+- `/announce TEXT` - Announcement
+- `/uhtml HTML` - HTML in PM (stopgap before client rewrite)
+
+<Note>
+If the server wants to render a message starting with `/`, it will send it starting with `//`.
+</Note>
+
+### Timestamped Chat
+
+```text
+|:|TIMESTAMP
+```
+
+Sets the current server time (UNIX timestamp).
+
+```text
+|c:|TIMESTAMP|USER|MESSAGE
+```
+
+Same as `|c|` but includes a UNIX timestamp for accurate chat logs.
+
+### Notify
+
+```text
+|notify|TITLE|MESSAGE
+```
+
+Sends a notification. `TITLE` is usually bold, `MESSAGE` is optional.
+
+```text
+|notify|TITLE|MESSAGE|HIGHLIGHTTOKEN
+```
+
+Sends a notification only if `HIGHLIGHTTOKEN` would trigger the user's highlight settings.
+
+### Battle Started
+
+```text
+|battle|ROOMID|USER1|USER2
+|b|ROOMID|USER1|USER2
+```
+
+A battle started between `USER1` and `USER2` in room `ROOMID`.
+
+## Global Messages
+
+### Popup
+
+```text
+|popup|MESSAGE
+```
+
+Shows a popup containing `MESSAGE`. `||` denotes a newline.
+
+### Private Message
+
+```text
+|pm|SENDER|RECEIVER|MESSAGE
+```
+
+A PM was sent from `SENDER` to `RECEIVER`.
+
+### User Count
+
+```text
+|usercount|USERCOUNT
+```
+
+Indicates the number of users on the server.
+
+### Name Taken
+
+```text
+|nametaken|USERNAME|MESSAGE
+```
+
+Your attempt to change to `USERNAME` failed for the reason in `MESSAGE`.
+
+## Authentication
+
+### Challenge String
+
+```text
+|challstr|CHALLSTR
+```
+
+Received upon connection. Used for authentication.
+
+<Steps>
+  <Step title="Check for existing session">
+    If you have session cookies, make an HTTP GET request:
+    
+    ```text
+    https://play.pokemonshowdown.com/api/upkeep?challstr=CHALLSTR
+    ```
+  </Step>
+  
+  <Step title="Or login with credentials">
+    Make an HTTP POST request with:
+    
+    ```text
+    https://play.pokemonshowdown.com/api/login
+    ```
+    
+    With data:
+    ```text
+    name=USERNAME&pass=PASSWORD&challstr=CHALLSTR
+    ```
+  </Step>
+  
+  <Step title="Parse response">
+    The response starts with `]` followed by a JSON object. Extract `data.assertion`.
+  </Step>
+  
+  <Step title="Complete login">
+    Send to the server:
+    
+    ```text
+    /trn USERNAME,0,ASSERTION
+    ```
+    
+    Where `ASSERTION` is `data.assertion` from the previous step.
+  </Step>
+</Steps>
+
+### Update User
+
+```text
+|updateuser|USER|NAMED|AVATAR|SETTINGS
+```
+
+Your name, avatar, or settings changed successfully.
+
+- `USER` - Your rank and username
+- `NAMED` - `0` if guest, `1` otherwise
+- `AVATAR` - Your avatar identifier
+- `SETTINGS` - JSON object with user settings
+
+## Format and Search Messages
+
+### Formats List
+
+```text
+|formats|FORMATSLIST
+```
+
+Lists available battle formats.
+
+`FORMATSLIST` is pipe-separated with these suffixes:
+- `,#` - Uses random teams
+- `,,` - Only available for searching
+- `,` - Only available for challenging
+
+Sections are separated by `||` with column numbers.
+
+### Update Search
+
+```text
+|updatesearch|JSON
+```
+
+`JSON` represents the current state of battle searches.
+
+**Example:**
+```json
+{
+  "searching": ["gen9ou", "gen9randombattle"],
+  "games": {
+    "battle-gen9ou-12345": "Player1 vs. Player2"
+  }
+}
+```
+
+### Update Challenges
+
+```text
+|updatechallenges|JSON
+```
+
+`JSON` represents current challenge state.
+
+**Example:**
+```json
+{
+  "challengesFrom": {
+    "player1": "gen7randombattle"
+  },
+  "challengeTo": {
+    "to": "player2",
+    "format": "gen7ou"
+  }
+}
+```
+
+### Query Response
+
+```text
+|queryresponse|QUERYTYPE|JSON
+```
+
+Response to `/query QUERYTYPE` commands.
+
+Possible queries:
+- `/query roomlist` - List of rooms
+- `/query userdetails USERNAME` - User information
+
+## Challenge System
+
+### Sending a Challenge
+
+```text
+/utm TEAM
+/challenge USERNAME, FORMAT
+```
+
+<Note>
+`TEAM` is in [packed format](/teams/packed-format) or `null` for formats like Random Battle.
+</Note>
+
+### Accepting a Challenge
+
+```text
+/utm TEAM
+/accept USERNAME
+```
+
+### Rejecting a Challenge
+
+```text
+/reject USERNAME
+```
+
+### Canceling a Challenge
+
+```text
+/cancelchallenge USERNAME
+```
+
+## Ladder System
+
+### Starting a Search
+
+```text
+/utm TEAM
+/search FORMAT
+```
+
+### Canceling a Search
+
+```text
+/cancelsearch
+```
+
+## Tournament Messages
+
+### Create Tournament
+
+```text
+|tournament|create|FORMAT|GENERATOR|PLAYERCAP
+```
+
+- `FORMAT` - Battle format name
+- `GENERATOR` - `Elimination` or `Round Robin`
+  - Elimination includes prefix: `Single`, `Double`, etc.
+  - Round Robin includes `Double` prefix if matchups battle twice
+- `PLAYERCAP` - Maximum players, or `0` for no cap
+
+### Tournament Update
+
+```text
+|tournament|update|JSON
+```
+
+JSON object with tournament changes:
+
+```json
+{
+  "format": "gen9ou",
+  "teambuilderFormat": "gen9ou",
+  "isStarted": true,
+  "isJoined": true,
+  "generator": "Single Elimination",
+  "playerCap": 16,
+  "bracketData": {},
+  "challenges": [],
+  "challengeBys": [],
+  "challenged": null,
+  "challenging": null
+}
+```
+
+### Tournament Events
+
+```text
+|tournament|updateEnd
+```
+Signals end of update period.
+
+```text
+|tournament|error|ERROR
+```
+An error occurred.
+
+```text
+|tournament|forceend
+```
+Tournament was forcibly ended.
+
+```text
+|tournament|join|USER
+```
+`USER` joined the tournament.
+
+```text
+|tournament|leave|USER
+```
+`USER` left the tournament.
+
+```text
+|tournament|replace|OLD|NEW
+```
+`OLD` was replaced with `NEW`.
+
+```text
+|tournament|start|NUMPLAYERS
+```
+Tournament started with `NUMPLAYERS` participants.
+
+```text
+|tournament|disqualify|USER
+```
+`USER` was disqualified.
+
+### Tournament Battles
+
+```text
+|tournament|battlestart|USER1|USER2|ROOMID
+```
+Tournament battle started between `USER1` and `USER2`.
+
+```text
+|tournament|battleend|USER1|USER2|RESULT|SCORE|RECORDED|ROOMID
+```
+Tournament battle ended.
+
+- `RESULT` - From `USER1`'s perspective: `win`, `loss`, or `draw`
+- `SCORE` - Array `[USER1_POKEMON_LEFT, USER2_POKEMON_LEFT]`
+- `RECORDED` - `success` or `fail` (if bracket doesn't support draws)
+
+```text
+|tournament|end|JSON
+```
+Tournament ended with results:
+
+```json
+{
+  "results": ["Winner1", "Winner2"],
+  "format": "gen9ou",
+  "generator": "Single Elimination",
+  "bracketData": {}
+}
+```
+
+### Tournament Settings
+
+```text
+|tournament|scouting|SETTING
+```
+Scouting is now `allow` or `disallow`.
+
+```text
+|tournament|autostart|on|TIMEOUT
+```
+Auto-start timer set for `TIMEOUT` seconds.
+
+```text
+|tournament|autostart|off
+```
+Auto-start timer turned off.
+
+```text
+|tournament|autodq|on|TIMEOUT
+```
+Auto-disqualify timer set for `TIMEOUT` seconds.
+
+```text
+|tournament|autodq|off
+```
+Auto-disqualify timer turned off.
+
+```text
+|tournament|autodq|target|TIME
+```
+You have `TIME` seconds to act or be disqualified.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Battle Protocol" href="/protocol/battle-protocol" icon="swords">
+    Learn about battle-specific message types
+  </Card>
+  <Card title="Choice Requests" href="/protocol/choice-requests" icon="hand-pointer">
+    Understand how to make decisions in battles
+  </Card>
+</CardGroup>

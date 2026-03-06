@@ -1,0 +1,133 @@
+---
+title: Battle Simulator Overview
+description: Introduction to Pokemon Showdown's battle simulation engine
+---
+
+Pokémon Showdown's battle simulator is the core engine that powers all battle calculations and game mechanics. The simulator provides a Node.js API for running battles programmatically.
+
+## Installation
+
+Install the Pokemon Showdown package from npm:
+
+```bash
+npm install pokemon-showdown
+```
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Stream-Based API" icon="stream">
+    The simulator uses an ObjectReadWriteStream architecture for battle I/O
+  </Card>
+  <Card title="Multiple Formats" icon="grid">
+    Support for all official Pokemon formats including Random Battles, OU, Ubers, and VGC
+  </Card>
+  <Card title="Team Management" icon="users">
+    Generate, validate, and convert teams between multiple formats
+  </Card>
+  <Card title="Language Agnostic" icon="code">
+    Access via Node.js API or command-line interface for any programming language
+  </Card>
+</CardGroup>
+
+## Architecture
+
+The battle simulator is implemented as an `ObjectReadWriteStream` where:
+
+- **Write**: Player choices (strings) are written to the stream
+- **Read**: Protocol messages (strings) are read from the stream
+
+### Core Components
+
+<Steps>
+  <Step title="BattleStream">
+    The main stream interface that accepts commands and outputs battle messages
+  </Step>
+  <Step title="Battle">
+    The internal battle state engine that processes moves, calculates damage, and applies game mechanics
+  </Step>
+  <Step title="Teams">
+    Team parsing, validation, and generation utilities
+  </Step>
+  <Step title="Dex">
+    The data layer providing access to Pokemon, moves, abilities, items, and formats
+  </Step>
+</Steps>
+
+## Quick Example
+
+Here's a minimal example of starting a battle:
+
+```js
+const Sim = require('pokemon-showdown');
+const stream = new Sim.BattleStream();
+
+(async () => {
+    for await (const output of stream) {
+        console.log(output);
+    }
+})();
+
+stream.write(`>start {"formatid":"gen9randombattle"}`);
+stream.write(`>player p1 {"name":"Alice"}`);
+stream.write(`>player p2 {"name":"Bob"}`);
+```
+
+<Note>
+  In random formats like `gen9randombattle`, teams are automatically generated if not provided.
+</Note>
+
+## Message Protocol
+
+All messages written to the simulator start with `>` followed by a command:
+
+- `>start OPTIONS` - Initialize a battle with format options
+- `>player PLAYERID OPTIONS` - Set player information
+- `>p1 CHOICE` / `>p2 CHOICE` - Submit player choices
+
+Messages read from the simulator follow the [SIM-PROTOCOL](/protocol/sim-protocol) format.
+
+## Use Cases
+
+### Battle Simulation
+Run automated battles for testing, AI development, or analytics.
+
+### Team Building Tools
+Validate team legality and convert between team formats.
+
+### Bot Development
+Create bots that can play Pokemon Showdown battles programmatically.
+
+### Research & Analytics
+Analyze battle mechanics, test strategies, and gather statistics.
+
+## Command-Line Interface
+
+For non-JavaScript languages, the simulator is accessible via standard I/O:
+
+```bash
+echo '>start {"formatid":"gen7randombattle"}
+>player p1 {"name":"Alice"}
+>player p2 {"name":"Bob"}' | ./pokemon-showdown simulate-battle
+```
+
+<Warning>
+  Remember to add `\n` after each message when using standard I/O, as each battle requires a separate subprocess.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/simulator/usage">
+    Learn how to use the simulator API in detail
+  </Card>
+  <Card title="BattleStream API" icon="stream" href="/simulator/battle-stream">
+    Explore the BattleStream interface and player streams
+  </Card>
+  <Card title="Team Formats" icon="users" href="/simulator/teams">
+    Understand team formats and conversions
+  </Card>
+  <Card title="Battle Formats" icon="trophy" href="/simulator/formats">
+    Browse available battle formats
+  </Card>
+</CardGroup>

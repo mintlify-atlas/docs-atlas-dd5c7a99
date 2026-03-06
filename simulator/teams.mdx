@@ -1,0 +1,503 @@
+---
+title: Team Formats
+description: Understanding Pokemon Showdown's team formats - packed, JSON, and export
+---
+
+Pokémon Showdown uses three different team formats, each optimized for different use cases:
+
+1. **Export format** - Human-readable format for import/export
+2. **JSON format** - Structured format for programmatic use
+3. **Packed format** - Compressed format for transmission and storage
+
+## Export Format
+
+The export format is designed to be human-readable and is used in the teambuilder's import/export features.
+
+### Example
+
+```
+Articuno @ Leftovers  
+Ability: Pressure  
+EVs: 252 HP / 252 SpA / 4 SpD  
+Modest Nature  
+IVs: 30 SpA / 30 SpD  
+- Ice Beam  
+- Hurricane  
+- Substitute  
+- Roost  
+
+Ludicolo @ Life Orb  
+Ability: Swift Swim  
+EVs: 4 HP / 252 SpA / 252 Spe  
+Modest Nature  
+- Surf  
+- Giga Drain  
+- Ice Beam  
+- Rain Dance
+```
+
+### Format Structure
+
+Each Pokemon is separated by a blank line and follows this structure:
+
+```
+SPECIES @ ITEM
+Ability: ABILITY
+EVs: HP_EVS HP / ATK_EVS Atk / DEF_EVS Def / SPA_EVS SpA / SPD_EVS SpD / SPE_EVS Spe
+NATURE Nature
+IVs: [non-31 IVs]
+- MOVE1
+- MOVE2
+- MOVE3
+- MOVE4
+```
+
+<Note>
+  Only non-default values are included (e.g., IVs only shown if not 31, EVs only if not 0).
+</Note>
+
+## JSON Format
+
+JSON format is used internally in the Pokemon Showdown codebase. It's a structured array of `PokemonSet` objects.
+
+### Example
+
+```json
+[
+  {
+    "name": "",
+    "species": "Articuno",
+    "gender": "",
+    "item": "Leftovers",
+    "ability": "Pressure",
+    "evs": {"hp": 252, "atk": 0, "def": 0, "spa": 252, "spd": 4, "spe": 0},
+    "nature": "Modest",
+    "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 30, "spd": 30, "spe": 31},
+    "moves": ["Ice Beam", "Hurricane", "Substitute", "Roost"]
+  },
+  {
+    "name": "",
+    "species": "Ludicolo",
+    "gender": "",
+    "item": "Life Orb",
+    "ability": "Swift Swim",
+    "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+    "nature": "Modest",
+    "moves": ["Surf", "Giga Drain", "Ice Beam", "Rain Dance"]
+  }
+]
+```
+
+### PokemonSet Type
+
+```typescript
+interface PokemonSet {
+    name: string;           // Nickname
+    species: string;        // Species name
+    gender?: string;        // M, F, or empty
+    item?: string;          // Held item
+    ability?: string;       // Ability name
+    evs?: StatsTable;       // Effort Values
+    ivs?: StatsTable;       // Individual Values
+    nature?: string;        // Nature name
+    level?: number;         // Level (1-100)
+    shiny?: boolean;        // Shiny status
+    happiness?: number;     // Happiness (0-255)
+    moves: string[];        // Move names (up to 4)
+}
+
+interface StatsTable {
+    hp: number;
+    atk: number;
+    def: number;
+    spa: number;
+    spd: number;
+    spe: number;
+}
+```
+
+## Packed Format
+
+Packed format is a compressed string representation used for network transmission, logging, and team storage.
+
+### Example
+
+```
+Articuno||leftovers|pressure|icebeam,hurricane,substitute,roost|Modest|252,,,252,4,||,,,30,30,|||]Ludicolo||lifeorb|swiftswim|surf,gigadrain,icebeam,raindance|Modest|4,,,252,,252|||||
+```
+
+<Note>
+  Line breaks added for readability - this is normally all one line.
+</Note>
+
+### Format Specification
+
+Pokemon are delimited by `]`. Each Pokemon follows this structure:
+
+```
+NICKNAME|SPECIES|ITEM|ABILITY|MOVES|NATURE|EVS|GENDER|IVS|SHINY|LEVEL|HAPPINESS,POKEBALL,HIDDENPOWERTYPE,GIGANTAMAX,DYNAMAXLEVEL,TERATYPE
+```
+
+#### Field Details
+
+<ParamField path="NICKNAME" type="string">
+  Pokemon nickname (blank if same as species)
+</ParamField>
+
+<ParamField path="SPECIES" type="string">
+  Species name (blank if identical to nickname)
+</ParamField>
+
+<ParamField path="ITEM" type="string">
+  Item ID in lowercase, no spaces
+</ParamField>
+
+<ParamField path="ABILITY" type="string | number">
+  - Ability name/ID, OR
+  - `0`, `1`, `H` for ability slot (preferred for standard abilities)
+</ParamField>
+
+<ParamField path="MOVES" type="string">
+  Comma-separated move IDs (lowercase, no spaces)
+</ParamField>
+
+<ParamField path="NATURE" type="string">
+  Nature name (blank = Serious, except Gen 1-2 = no nature)
+</ParamField>
+
+<ParamField path="EVS" type="string">
+  Comma-separated: `HP,Atk,Def,SpA,SpD,Spe`
+  - Blank values = 0
+  - All blank = omit commas entirely
+  - In Let's Go = AVs instead of EVs
+</ParamField>
+
+<ParamField path="GENDER" type="string">
+  `M`, `F`, or blank
+</ParamField>
+
+<ParamField path="IVS" type="string">
+  Comma-separated: `HP,Atk,Def,SpA,SpD,Spe`
+  - Blank values = 31
+  - All blank = omit commas entirely
+  - In Gen 1-2 = DVs (IVs divided by 2, rounded down)
+  - Post-hyper-training values
+</ParamField>
+
+<ParamField path="SHINY" type="string">
+  `S` for shiny, blank for non-shiny
+</ParamField>
+
+<ParamField path="LEVEL" type="number">
+  Pokemon level (blank = 100)
+</ParamField>
+
+<ParamField path="HAPPINESS" type="number">
+  Happiness value (blank = 255)
+</ParamField>
+
+<ParamField path="POKEBALL" type="string">
+  Pokeball type (blank = regular Poke Ball)
+</ParamField>
+
+<ParamField path="HIDDENPOWERTYPE" type="string">
+  Hidden Power type for hyper-trained Pokemon (blank if not applicable)
+</ParamField>
+
+<ParamField path="GIGANTAMAX" type="string">
+  `G` for Gigantamax, blank otherwise
+</ParamField>
+
+<ParamField path="DYNAMAXLEVEL" type="number">
+  Dynamax level (blank = 10)
+</ParamField>
+
+<ParamField path="TERATYPE" type="string">
+  Tera Type (blank = first type of Pokemon)
+</ParamField>
+
+<Note>
+  If POKEBALL, HIDDENPOWERTYPE, GIGANTAMAX, DYNAMAXLEVEL, and TERATYPE are all blank, the trailing commas are omitted.
+</Note>
+
+## Converting Between Formats
+
+The `Teams` module provides conversion functions:
+
+### Import (Any Format → JSON)
+
+```js
+const { Teams } = require('pokemon-showdown');
+
+// Accepts export, JSON string, or packed format
+const team = Teams.import(teamString);
+// Returns: PokemonSet[]
+```
+
+<Tabs>
+  <Tab title="From Export">
+    ```js
+    const exportedTeam = `
+    Articuno @ Leftovers  
+    Ability: Pressure  
+    EVs: 252 HP / 252 SpA / 4 SpD  
+    Modest Nature  
+    - Ice Beam  
+    - Hurricane
+    `;
+
+    const team = Teams.import(exportedTeam);
+    console.log(team[0].species); // "Articuno"
+    ```
+  </Tab>
+  <Tab title="From Packed">
+    ```js
+    const packedTeam = "Articuno||leftovers|pressure|icebeam,hurricane,substitute,roost|Modest|252,,,252,4,||,,,30,30,|||]";
+
+    const team = Teams.import(packedTeam);
+    console.log(team.length); // 1
+    ```
+  </Tab>
+</Tabs>
+
+### Export (JSON → Export Format)
+
+```js
+const exportString = Teams.export(team);
+// Returns: string (human-readable format)
+```
+
+Example:
+
+```js
+const team = [{
+    species: "Pikachu",
+    item: "Light Ball",
+    ability: "Static",
+    moves: ["Thunderbolt", "Quick Attack", "Iron Tail", "Volt Tackle"],
+    nature: "Adamant",
+    evs: {hp: 0, atk: 252, def: 0, spa: 0, spd: 4, spe: 252},
+    ivs: {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31}
+}];
+
+const exported = Teams.export(team);
+console.log(exported);
+// Output:
+// Pikachu @ Light Ball
+// Ability: Static
+// EVs: 252 Atk / 4 SpD / 252 Spe
+// Adamant Nature
+// - Thunderbolt
+// - Quick Attack
+// - Iron Tail
+// - Volt Tackle
+```
+
+### Pack (JSON → Packed Format)
+
+```js
+const packedString = Teams.pack(team);
+// Returns: string (compressed format)
+```
+
+Example:
+
+```js
+const team = Teams.import(exportedTeam);
+const packed = Teams.pack(team);
+console.log(packed);
+// Articuno||leftovers|pressure|icebeam,hurricane,substitute,roost|Modest|252,,,252,4,||,,,30,30,|||]
+```
+
+### Unpack (Packed → JSON)
+
+```js
+const team = Teams.unpack(packedString);
+// Returns: PokemonSet[]
+```
+
+Example:
+
+```js
+const packed = "Pikachu||lightball|static|thunderbolt,quickattack,irontail,volttackle|Adamant|,252,,,4,252|||||";
+const team = Teams.unpack(packed);
+console.log(team[0].item); // "Light Ball"
+```
+
+### Export Single Set
+
+```js
+const setString = Teams.exportSet(pokemonSet);
+// Returns: string (single Pokemon in export format)
+```
+
+## Round-Trip Conversions
+
+You can convert between any two formats by going through JSON:
+
+<CodeGroup>
+```js Export → Packed
+const packed = Teams.pack(Teams.import(exportedTeam));
+```
+
+```js Packed → Export
+const exported = Teams.export(Teams.unpack(packedTeam));
+```
+</CodeGroup>
+
+## Team Generation
+
+Generate random teams for random battle formats:
+
+```js
+const team = Teams.generate(format, options?);
+```
+
+<ParamField path="format" type="string | Format" required>
+  Format ID or Format object (e.g., `"gen9randombattle"`)
+</ParamField>
+
+<ParamField path="options.seed" type="number[]">
+  PRNG seed as array of 4 numbers for reproducible generation
+</ParamField>
+
+### Example
+
+```js
+const { Teams } = require('pokemon-showdown');
+
+// Generate random team
+const team = Teams.generate('gen9randombattle');
+console.log(team.length); // 6
+
+// Convert to packed format for battle
+const packed = Teams.pack(team);
+
+// Use in battle
+stream.write(`>player p1 {"name":"Player","team":${JSON.stringify(packed)}}`);
+```
+
+<Note>
+  Random team generation only works for formats with `team: 'random'` in their configuration.
+</Note>
+
+## Team Validator
+
+Validate team legality for a specific format:
+
+```js
+const { TeamValidator } = require('pokemon-showdown');
+
+const validator = new TeamValidator(formatid);
+const problems = validator.validateTeam(team);
+```
+
+- Returns `null` if the team is legal
+- Returns `string[]` of problems if the team is illegal
+
+### Example
+
+```js
+const { Teams, TeamValidator } = require('pokemon-showdown');
+
+// Import a team
+const team = Teams.import(exportedTeamString);
+
+// Validate for Gen 9 OU
+const validator = new TeamValidator('gen9ou');
+const problems = validator.validateTeam(team);
+
+if (problems) {
+    console.error('Team is illegal:');
+    problems.forEach(problem => console.error('- ' + problem));
+} else {
+    console.log('Team is legal!');
+}
+```
+
+<Warning>
+  The simulator does **not** automatically validate teams. Always validate before using teams in non-random formats.
+</Warning>
+
+## Complete Example
+
+Here's a complete workflow from export format to battle:
+
+```js
+const { Teams, TeamValidator, BattleStream } = require('pokemon-showdown');
+
+// Import teams from export format
+const team1Export = `
+Pikachu @ Light Ball
+Ability: Static
+EVs: 252 Atk / 4 SpD / 252 Spe
+Adamant Nature
+- Volt Tackle
+- Iron Tail
+- Quick Attack
+- Thunderbolt
+`;
+
+const team2Export = `
+Charizard @ Charizardite Y
+Ability: Blaze
+EVs: 252 SpA / 4 SpD / 252 Spe
+Timid Nature
+- Flamethrower
+- Air Slash
+- Roost
+- Solar Beam
+`;
+
+// Convert to JSON
+const team1 = Teams.import(team1Export);
+const team2 = Teams.import(team2Export);
+
+// Validate teams
+const validator = new TeamValidator('gen9ou');
+const problems1 = validator.validateTeam(team1);
+const problems2 = validator.validateTeam(team2);
+
+if (problems1 || problems2) {
+    console.error('Teams are not legal for Gen 9 OU');
+    process.exit(1);
+}
+
+// Pack for battle
+const packed1 = Teams.pack(team1);
+const packed2 = Teams.pack(team2);
+
+// Start battle
+const stream = new BattleStream();
+
+stream.write(`>start {"formatid":"gen9ou"}`);
+stream.write(`>player p1 {"name":"Player 1","team":${JSON.stringify(packed1)}}`);
+stream.write(`>player p2 {"name":"Player 2","team":${JSON.stringify(packed2)}}`);
+```
+
+## Command-Line API
+
+All team operations are available via command-line for non-JavaScript languages:
+
+```bash
+# Convert packed to export
+echo "Pikachu||lightball|static|volttackle,irontail,quickattack,thunderbolt|Adamant|,252,,,4,252|||||" | \
+  ./pokemon-showdown unpack-team
+
+# Validate team
+echo '<team string>' | ./pokemon-showdown validate-team gen9ou
+
+# Generate random team
+./pokemon-showdown generate-team gen9randombattle
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/simulator/usage">
+    Learn how to use teams in battles
+  </Card>
+  <Card title="Battle Formats" icon="trophy" href="/simulator/formats">
+    Explore available battle formats
+  </Card>
+</CardGroup>

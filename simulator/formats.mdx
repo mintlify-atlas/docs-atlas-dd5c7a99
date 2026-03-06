@@ -1,0 +1,483 @@
+---
+title: Battle Formats
+description: Understanding Pokemon Showdown battle formats and format IDs
+---
+
+Pokemon Showdown supports hundreds of battle formats, each with unique rulesets and restrictions. Formats are identified by a format ID used throughout the simulator API.
+
+## Format IDs
+
+Format IDs are lowercase, alphanumeric strings with no spaces:
+
+```
+gen9ou
+gen9randombattle
+gen9vgc2026
+gen7customgame
+```
+
+### Naming Convention
+
+Format IDs typically follow this pattern:
+
+```
+gen[GENERATION][FORMAT][VARIANT]
+```
+
+<ParamField path="GENERATION" type="number">
+  Generation number (1-9) or omitted for current gen
+</ParamField>
+
+<ParamField path="FORMAT" type="string">
+  Format name: `ou`, `ubers`, `randombattle`, `vgc`, `doubles`, etc.
+</ParamField>
+
+<ParamField path="VARIANT" type="string">
+  Optional variant or regulation: `regi`, `bo3`, etc.
+</ParamField>
+
+## Format Categories
+
+Formats are organized into sections:
+
+### Singles Formats
+
+Competitive 6v6 singles battles:
+
+<CardGroup cols={2}>
+  <Card title="Random Battle" icon="dice">
+    **Format ID:** `gen9randombattle`
+    
+    Randomized teams with competitively viable sets. Great for quick battles without team building.
+  </Card>
+  <Card title="OU (OverUsed)" icon="star">
+    **Format ID:** `gen9ou`
+    
+    The most popular competitive format with standard rules and a curated banlist.
+  </Card>
+  <Card title="Ubers" icon="crown">
+    **Format ID:** `gen9ubers`
+    
+    Allows legendary and mythical Pokemon banned from OU.
+  </Card>
+  <Card title="UU / RU / NU / PU" icon="chart-line">
+    **Format IDs:** `gen9uu`, `gen9ru`, `gen9nu`, `gen9pu`
+    
+    Usage-based tiers with Pokemon banned from higher tiers.
+  </Card>
+</CardGroup>
+
+### Doubles Formats
+
+Competitive doubles battles:
+
+<CardGroup cols={2}>
+  <Card title="Random Doubles" icon="dice">
+    **Format ID:** `gen9randomdoublesbattle`
+    
+    Randomized doubles teams.
+  </Card>
+  <Card title="Doubles OU" icon="star">
+    **Format ID:** `gen9doublesou`
+    
+    Competitive doubles with standard rules.
+  </Card>
+  <Card title="VGC (Video Game Championships)" icon="trophy">
+    **Format IDs:** `gen9vgc2026regi`, `gen9vgc2026regf`
+    
+    Official Pokemon VGC rules with regulation variations.
+  </Card>
+  <Card title="Doubles Ubers" icon="crown">
+    **Format ID:** `gen9doublesubers`
+    
+    Unrestricted doubles format.
+  </Card>
+</CardGroup>
+
+### Other Metagames (OMs)
+
+Creative formats with modified rules:
+
+<CardGroup cols={2}>
+  <Card title="Almost Any Ability" icon="wand">
+    **Format ID:** `gen9almostanyability`
+    
+    Pokemon can use almost any ability.
+  </Card>
+  <Card title="Balanced Hackmons" icon="code">
+    **Format ID:** `gen9balancedhackmons`
+    
+    Anything hackable is allowed with balance restrictions.
+  </Card>
+  <Card title="STABmons" icon="bolt">
+    **Format ID:** `gen9stabmons`
+    
+    Pokemon can use any move matching their type.
+  </Card>
+  <Card title="Mix and Mega" icon="gem">
+    **Format ID:** `gen9mixandmega`
+    
+    Any Pokemon can mega evolve with any mega stone.
+  </Card>
+</CardGroup>
+
+### Custom Formats
+
+<Card title="Custom Game" icon="sliders">
+  **Format IDs:** `gen9customgame`, `gen9doublescustomgame`
+  
+  No restrictions - for testing and experimentation.
+  
+  ```js
+  stream.write(`>start {"formatid":"gen9customgame"}`);
+  ```
+</Card>
+
+## Format Configuration
+
+Formats are defined in `/config/formats.ts` with configuration objects:
+
+```typescript
+{
+    name: "[Gen 9] Random Battle",
+    desc: "Randomized teams of Pokémon with competitively viable sets.",
+    mod: 'gen9',
+    team: 'random',
+    bestOfDefault: true,
+    ruleset: ['PotD', 'Obtainable', 'Species Clause', 'HP Percentage Mod', 
+              'Cancel Mod', 'Sleep Clause Mod', 'Illusion Level Mod'],
+}
+```
+
+### Key Properties
+
+<ParamField path="name" type="string" required>
+  Display name of the format (e.g., `"[Gen 9] OU"`)
+</ParamField>
+
+<ParamField path="mod" type="string" required>
+  Generation/mod to use (e.g., `'gen9'`, `'gen8'`)
+</ParamField>
+
+<ParamField path="gameType" type="string">
+  Battle type: `'singles'` (default), `'doubles'`, `'triples'`, `'multi'`, or `'freeforall'`
+</ParamField>
+
+<ParamField path="team" type="string">
+  Team generation mode:
+  - `'random'` - Randomly generated teams
+  - `'randomBSSFactory'` - BSS Factory sets
+  - Not specified - Teams must be provided
+</ParamField>
+
+<ParamField path="ruleset" type="string[]">
+  Array of rules to apply (e.g., `['Standard', 'Sleep Clause Mod']`)
+</ParamField>
+
+<ParamField path="banlist" type="string[]">
+  Banned Pokemon, moves, items, and abilities
+</ParamField>
+
+<ParamField path="restricted" type="string[]">
+  Restricted items with usage limits (e.g., limit one restricted legendary)
+</ParamField>
+
+## Using Formats
+
+### Starting a Battle
+
+Specify the format ID when starting a battle:
+
+```js
+const stream = new BattleStream();
+stream.write(`>start {"formatid":"gen9ou"}`);
+```
+
+### Format-Specific Behavior
+
+<Tabs>
+  <Tab title="Random Formats">
+    Teams are generated automatically if not provided:
+
+    ```js
+    stream.write(`>start {"formatid":"gen9randombattle"}`);
+    stream.write(`>player p1 {"name":"Alice"}`); // No team needed
+    stream.write(`>player p2 {"name":"Bob"}`);
+    ```
+
+    Or provide your own team:
+
+    ```js
+    const team = Teams.pack(Teams.generate('gen9randombattle'));
+    stream.write(`>player p1 {"name":"Alice","team":${JSON.stringify(team)}}`);
+    ```
+  </Tab>
+  <Tab title="Standard Formats">
+    Teams must be provided in packed or JSON format:
+
+    ```js
+    stream.write(`>start {"formatid":"gen9ou"}`);
+    stream.write(`>player p1 {"name":"Alice","team":"<packed team>"}`);
+    stream.write(`>player p2 {"name":"Bob","team":"<packed team>"}`);
+    ```
+
+    <Warning>
+      Teams are not validated automatically. Use [TeamValidator](/simulator/teams#team-validator) to ensure legality.
+    </Warning>
+  </Tab>
+  <Tab title="Doubles/Multi">
+    Doubles formats require `gameType: 'doubles'`:
+
+    ```js
+    stream.write(`>start {"formatid":"gen9doublesou"}`);
+    ```
+
+    Multi battles support 4 players:
+
+    ```js
+    stream.write(`>start {"formatid":"gen9multirandom"}`);
+    stream.write(`>player p1 {"name":"Alice"}`);
+    stream.write(`>player p2 {"name":"Bob"}`);
+    stream.write(`>player p3 {"name":"Carol"}`);
+    stream.write(`>player p4 {"name":"Dave"}`);
+    ```
+  </Tab>
+</Tabs>
+
+## Format Examples from Source
+
+Here are real format definitions from the Pokemon Showdown source:
+
+### Gen 9 Random Battle
+
+```typescript
+{
+    name: "[Gen 9] Random Battle",
+    desc: `Randomized teams of Pokémon with competitively viable sets.`,
+    mod: 'gen9',
+    team: 'random',
+    bestOfDefault: true,
+    ruleset: ['PotD', 'Obtainable', 'Species Clause', 'HP Percentage Mod', 
+              'Cancel Mod', 'Sleep Clause Mod', 'Illusion Level Mod'],
+}
+```
+
+### Gen 9 OU
+
+```typescript
+{
+    name: "[Gen 9] OU",
+    mod: 'gen9',
+    ruleset: ['Standard', 'Evasion Abilities Clause', 'Sleep Moves Clause', 
+              '!Sleep Clause Mod'],
+    banlist: ['Uber', 'AG', 'Arena Trap', 'Moody', 'Shadow Tag', 
+              'King\'s Rock', 'Razor Fang', 'Baton Pass', 'Last Respects', 
+              'Shed Tail'],
+}
+```
+
+### Gen 9 VGC 2026 Reg I
+
+```typescript
+{
+    name: "[Gen 9] VGC 2026 Reg I",
+    mod: 'gen9',
+    gameType: 'doubles',
+    bestOfDefault: true,
+    ruleset: ['Flat Rules', '!! Adjust Level = 50', 'Min Source Gen = 9', 
+              'VGC Timer', 'Limit Two Restricted'],
+    restricted: ['Restricted Legendary'],
+}
+```
+
+### Gen 9 Custom Game
+
+```typescript
+{
+    name: "[Gen 9] Custom Game",
+    mod: 'gen9',
+    searchShow: false,
+    debug: true,
+    battle: { trunc: Math.trunc },
+    ruleset: ['Team Preview', 'Cancel Mod', 'Max Team Size = 24', 
+              'Max Move Count = 24', 'Max Level = 9999', 'Default Level = 100'],
+}
+```
+
+## Rulesets
+
+Rulesets define the rules and clauses applied to a format:
+
+### Common Rulesets
+
+<Tabs>
+  <Tab title="Standard">
+    ```typescript
+    'Standard'
+    ```
+    
+    Basic competitive rules including:
+    - Team Preview
+    - Species Clause (no duplicate Pokemon)
+    - OHKO Clause (no one-hit KO moves)
+    - Evasion Moves Clause
+    - Sleep Clause Mod
+    - HP Percentage Mod
+    - Cancel Mod
+  </Tab>
+  <Tab title="Standard OMs">
+    ```typescript
+    'Standard OMs'
+    ```
+    
+    Standard rules for Other Metagames (less restrictive than Standard).
+  </Tab>
+  <Tab title="Flat Rules">
+    ```typescript
+    'Flat Rules'
+    ```
+    
+    Official VGC flat rules:
+    - Team size 4-6, bring 4
+    - Adjusts all Pokemon to level 50
+    - Item Clause
+    - Species Clause
+  </Tab>
+</Tabs>
+
+### Clauses
+
+Individual rules that can be applied:
+
+- `'Species Clause'` - No duplicate Pokemon
+- `'Sleep Clause Mod'` - Limit sleeping opponents
+- `'OHKO Clause'` - Ban OHKO moves
+- `'Evasion Moves Clause'` - Ban evasion-boosting moves
+- `'Evasion Abilities Clause'` - Ban evasion abilities
+- `'HP Percentage Mod'` - Display HP as percentages
+- `'Cancel Mod'` - Allow move cancellation
+
+## Accessing Format Data
+
+You can access format data programmatically:
+
+```js
+const Dex = require('pokemon-showdown').Dex;
+
+// Get format by ID
+const format = Dex.formats.get('gen9ou');
+
+console.log(format.name);        // "[Gen 9] OU"
+console.log(format.gameType);    // "singles"
+console.log(format.ruleset);     // Array of rules
+console.log(format.banlist);     // Array of bans
+
+// Check if format exists
+if (format.exists) {
+    console.log('Format is valid');
+}
+```
+
+## Legacy Formats
+
+Older generation formats are also supported:
+
+```js
+// Gen 8
+stream.write(`>start {"formatid":"gen8ou"}`);
+
+// Gen 7
+stream.write(`>start {"formatid":"gen7randombattle"}`);
+
+// Gen 6
+stream.write(`>start {"formatid":"gen6ou"}`);
+
+// Gen 4
+stream.write(`>start {"formatid":"gen4vgc2009"}`);
+```
+
+Each generation has its own mechanics, move pools, and available Pokemon.
+
+## Custom Formats
+
+You can create custom formats by modifying `config/formats.ts` or `config/custom-formats.ts`:
+
+```typescript
+export const Formats: FormatList = [
+    {
+        section: "Custom Formats",
+    },
+    {
+        name: "[Gen 9] My Custom Format",
+        mod: 'gen9',
+        ruleset: ['Standard'],
+        banlist: ['Uber', 'Shadow Tag'],
+    },
+];
+```
+
+<Note>
+  Custom formats require modifying the Pokemon Showdown server code and are not available in the npm package.
+</Note>
+
+## Format Validation
+
+When using a format, the simulator will:
+
+1. Check if the format exists
+2. Load the appropriate game generation (mod)
+3. Apply all rulesets
+4. Enforce banlists and restrictions
+
+Teams must be validated separately using [TeamValidator](/simulator/teams#team-validator).
+
+## Complete Example
+
+Here's a complete example using multiple formats:
+
+```js
+const { BattleStream, Teams, TeamValidator } = require('pokemon-showdown');
+
+// Function to run a battle in a specific format
+async function runBattle(formatid, team1, team2) {
+    const stream = new BattleStream();
+    
+    // Validate teams
+    const validator = new TeamValidator(formatid);
+    const problems1 = validator.validateTeam(team1);
+    const problems2 = validator.validateTeam(team2);
+    
+    if (problems1 || problems2) {
+        console.error(`Teams invalid for ${formatid}`);
+        return;
+    }
+    
+    // Start battle
+    stream.write(`>start {"formatid":"${formatid}"}`);
+    stream.write(`>player p1 {"name":"Player 1","team":${JSON.stringify(Teams.pack(team1))}}`);
+    stream.write(`>player p2 {"name":"Player 2","team":${JSON.stringify(Teams.pack(team2))}}`);
+    
+    // Read output
+    for await (const output of stream) {
+        console.log(output);
+    }
+}
+
+// Generate teams and battle in different formats
+const team1 = Teams.generate('gen9randombattle');
+const team2 = Teams.generate('gen9randombattle');
+
+await runBattle('gen9ou', team1, team2);
+await runBattle('gen9doublesou', team1, team2);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="book" href="/simulator/overview">
+    Return to simulator overview
+  </Card>
+  <Card title="Team Formats" icon="users" href="/simulator/teams">
+    Learn about team formats
+  </Card>
+</CardGroup>

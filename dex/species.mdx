@@ -1,0 +1,332 @@
+---
+title: 'Species API'
+description: 'Get Pokémon species data including stats, types, abilities, and formes'
+---
+
+## Overview
+
+The Species API provides access to Pokémon species data including base stats, types, abilities, evolution chains, and alternate formes.
+
+## Basic Usage
+
+### Get a Species
+
+Retrieve species information using `Dex.species.get()`:
+
+```javascript
+const {Dex} = require('pokemon-showdown');
+
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.name); // 'Pikachu'
+console.log(pikachu.types); // ['Electric']
+console.log(pikachu.baseStats); 
+// { hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90 }
+```
+
+<Note>
+Species names are case-insensitive and whitespace is ignored.
+</Note>
+
+```javascript
+// All of these work
+Dex.species.get('pikachu');
+Dex.species.get('Pikachu');
+Dex.species.get('PIKACHU');
+Dex.species.get('P i k a c h u');
+```
+
+## Species Properties
+
+<CodeGroup>
+
+```javascript Basic Properties
+const bulbasaur = Dex.species.get('Bulbasaur');
+
+console.log(bulbasaur.num); // 1
+console.log(bulbasaur.name); // 'Bulbasaur'
+console.log(bulbasaur.types); // ['Grass', 'Poison']
+console.log(bulbasaur.baseStats);
+// { hp: 45, atk: 49, def: 49, spa: 65, spd: 65, spe: 45 }
+```
+
+```javascript Abilities
+const bulbasaur = Dex.species.get('Bulbasaur');
+
+console.log(bulbasaur.abilities);
+// { 0: 'Overgrow', H: 'Chlorophyll' }
+// 0 = Primary ability, H = Hidden ability
+```
+
+```javascript Physical Data
+const bulbasaur = Dex.species.get('Bulbasaur');
+
+console.log(bulbasaur.heightm); // 0.7
+console.log(bulbasaur.weightkg); // 6.9
+console.log(bulbasaur.color); // 'Green'
+console.log(bulbasaur.eggGroups); // ['Monster', 'Grass']
+```
+
+```javascript Gender Ratio
+const bulbasaur = Dex.species.get('Bulbasaur');
+
+console.log(bulbasaur.genderRatio);
+// { M: 0.875, F: 0.125 }
+// M = 87.5% male, F = 12.5% female
+```
+
+</CodeGroup>
+
+## Evolution Data
+
+### Evolution Chains
+
+```javascript
+const ivysaur = Dex.species.get('Ivysaur');
+
+console.log(ivysaur.prevo); // 'Bulbasaur'
+console.log(ivysaur.evoLevel); // 16
+console.log(ivysaur.evos); // ['Venusaur']
+
+const venusaur = Dex.species.get('Venusaur');
+console.log(venusaur.prevo); // 'Ivysaur'
+console.log(venusaur.evoLevel); // 32
+console.log(venusaur.evos); // undefined (fully evolved)
+```
+
+### Evolution Methods
+
+<CodeGroup>
+
+```javascript Level Up
+const charmander = Dex.species.get('Charmander');
+console.log(charmander.evos); // ['Charmeleon']
+
+const charmeleon = Dex.species.get('Charmeleon');
+console.log(charmeleon.evoLevel); // 16
+```
+
+```javascript Evolution Stone
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.evos); // ['Raichu', 'Raichu-Alola']
+
+const raichu = Dex.species.get('Raichu');
+console.log(raichu.evoType); // 'useItem'
+console.log(raichu.evoItem); // 'Thunder Stone'
+```
+
+```javascript Friendship
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.prevo); // 'Pichu'
+
+const pichu = Dex.species.get('Pichu');
+console.log(pikachu.evoType); // 'levelFriendship'
+```
+
+```javascript Trade
+const kadabra = Dex.species.get('Kadabra');
+console.log(kadabra.evos); // ['Alakazam']
+
+const alakazam = Dex.species.get('Alakazam');
+console.log(alakazam.evoType); // 'trade'
+```
+
+</CodeGroup>
+
+## Alternate Formes
+
+### Mega Evolutions
+
+```javascript
+const venusaur = Dex.species.get('Venusaur');
+
+console.log(venusaur.otherFormes); // ['Venusaur-Mega']
+console.log(venusaur.formeOrder); 
+// ['Venusaur', 'Venusaur-Mega']
+
+const venusaurMega = Dex.species.get('Venusaur-Mega');
+console.log(venusaurMega.baseSpecies); // 'Venusaur'
+console.log(venusaurMega.forme); // 'Mega'
+console.log(venusaurMega.requiredItem); // 'Venusaurite'
+console.log(venusaurMega.baseStats);
+// { hp: 80, atk: 100, def: 123, spa: 122, spd: 120, spe: 80 }
+```
+
+### Regional Formes
+
+```javascript
+const rattata = Dex.species.get('Rattata');
+console.log(rattata.otherFormes); // ['Rattata-Alola']
+
+const rattataAlola = Dex.species.get('Rattata-Alola');
+console.log(rattataAlola.baseSpecies); // 'Rattata'
+console.log(rattataAlola.forme); // 'Alola'
+console.log(rattataAlola.types); // ['Dark', 'Normal']
+
+// Compare to original
+const rattataKanto = Dex.species.get('Rattata');
+console.log(rattataKanto.types); // ['Normal']
+```
+
+### Gigantamax Formes
+
+```javascript
+const venusaur = Dex.species.get('Venusaur');
+console.log(venusaur.canGigantamax); // 'G-Max Vine Lash'
+
+const venusaurGmax = Dex.species.get('Venusaur-Gmax');
+console.log(venusaurGmax.baseSpecies); // 'Venusaur'
+console.log(venusaurGmax.forme); // 'Gmax'
+console.log(venusaurGmax.changesFrom); // 'Venusaur'
+```
+
+## List All Species
+
+Retrieve all species data:
+
+```javascript
+const allSpecies = Dex.species.all();
+
+console.log(allSpecies.length); // 1000+ species
+console.log(allSpecies[0].name); // 'Bulbasaur'
+
+// Filter to standard species only
+const standardSpecies = allSpecies.filter(s => 
+  s.exists && !s.isNonstandard
+);
+```
+
+<Warning>
+The `.all()` method includes nonstandard data from CAP, past generations, and unreleased content. Always check `exists` and `isNonstandard` properties.
+</Warning>
+
+## Generation-Specific Data
+
+Access species data from previous generations:
+
+```javascript
+// Gen 1 data
+const gen1Dex = Dex.mod('gen1');
+const gen1Pikachu = gen1Dex.species.get('Pikachu');
+
+console.log(gen1Pikachu.types); // ['Electric']
+// Gen 1 has no abilities or held items
+console.log(gen1Pikachu.abilities); // undefined
+
+// Gen 4 added evolutions
+const gen3Dex = Dex.mod('gen3');
+const gen3Pikachu = gen3Dex.species.get('Pikachu');
+console.log(gen3Pikachu.prevo); // undefined (Pichu not in Gen 3)
+
+const gen4Dex = Dex.mod('gen4');
+const gen4Pikachu = gen4Dex.species.get('Pikachu');
+console.log(gen4Pikachu.prevo); // 'Pichu'
+```
+
+## Checking Species Existence
+
+Validate species before using:
+
+```javascript
+const missingno = Dex.species.get('Missingno');
+console.log(missingno.exists); // false
+console.log(missingno.name); // 'Missingno' (returned anyway)
+
+const tomohawk = Dex.species.get('Tomohawk');
+console.log(tomohawk.exists); // true
+console.log(tomohawk.isNonstandard); // 'CAP'
+
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.exists); // true
+console.log(pikachu.isNonstandard); // null (standard)
+```
+
+## Special Cases
+
+### Multiple Formes
+
+```javascript
+// Charizard has two Mega Evolutions
+const charizard = Dex.species.get('Charizard');
+console.log(charizard.otherFormes); 
+// ['Charizard-Mega-X', 'Charizard-Mega-Y']
+
+const charizardX = Dex.species.get('Charizard-Mega-X');
+console.log(charizardX.types); // ['Fire', 'Dragon']
+console.log(charizardX.requiredItem); // 'Charizardite X'
+
+const charizardY = Dex.species.get('Charizard-Mega-Y');
+console.log(charizardY.types); // ['Fire', 'Flying']
+console.log(charizardY.requiredItem); // 'Charizardite Y'
+```
+
+### Cosplay Pikachu
+
+```javascript
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.otherFormes.length); // Multiple cosplay formes
+
+const pikachuRockStar = Dex.species.get('Pikachu-Rock-Star');
+console.log(pikachuRockStar.baseSpecies); // 'Pikachu'
+console.log(pikachuRockStar.forme); // 'Rock-Star'
+console.log(pikachuRockStar.gender); // 'F'
+```
+
+## Practical Examples
+
+### Get All Dragon Types
+
+```javascript
+const dragonTypes = Dex.species.all()
+  .filter(s => s.exists && !s.isNonstandard)
+  .filter(s => s.types.includes('Dragon'));
+
+console.log(dragonTypes.map(s => s.name));
+// ['Dratini', 'Dragonair', 'Dragonite', ...]
+```
+
+### Find Fastest Pokémon
+
+```javascript
+const allSpecies = Dex.species.all()
+  .filter(s => s.exists && !s.isNonstandard);
+
+const fastest = allSpecies.reduce((max, s) => 
+  s.baseStats.spe > max.baseStats.spe ? s : max
+);
+
+console.log(fastest.name); // Species with highest base Speed
+console.log(fastest.baseStats.spe);
+```
+
+### Check Type Combinations
+
+```javascript
+const species = Dex.species.get('Charizard-Mega-X');
+const hasType = (types, type) => types.includes(type);
+
+if (hasType(species.types, 'Fire') && hasType(species.types, 'Dragon')) {
+  console.log(`${species.name} is Fire/Dragon type`);
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+
+<Card title="Moves API" icon="bolt" href="/dex/moves">
+Access move data and properties
+</Card>
+
+<Card title="Abilities API" icon="shield-halved" href="/dex/abilities">
+Query ability information
+</Card>
+
+<Card title="Items API" icon="gem" href="/dex/items">
+Retrieve held items data
+</Card>
+
+<Card title="Formats Data" icon="list" href="/dex/formats-data">
+Get format-specific restrictions
+</Card>
+
+</CardGroup>

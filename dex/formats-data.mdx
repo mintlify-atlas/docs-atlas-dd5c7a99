@@ -1,0 +1,387 @@
+---
+title: 'Format-Specific Data'
+description: 'Access tier placements, move restrictions, and format-specific Pokémon data'
+---
+
+## Overview
+
+Format-specific data contains tier placements, banned moves, and other restrictions for different competitive formats. This data is separate from base species/move/ability data.
+
+## What is Formats Data?
+
+Formats data stores information about how Pokémon, moves, abilities, and items are treated in specific competitive formats like OU, Ubers, VGC, etc.
+
+<Note>
+Formats data is stored separately from the main Dex data in `formats-data.ts` files.
+</Note>
+
+## Accessing Format Data
+
+Format-specific data is accessed through the species object:
+
+```javascript
+const {Dex} = require('pokemon-showdown');
+
+// Get a Pokemon's tier
+const pikachu = Dex.species.get('Pikachu');
+console.log(pikachu.tier); // Tier assigned in formats-data
+
+// Check if a move is available in a format
+const formatDex = Dex.forFormat('gen8ou');
+const move = formatDex.moves.get('Dynamax Cannon');
+```
+
+## Tier System
+
+Pokémon are assigned to tiers based on usage statistics:
+
+<CodeGroup>
+
+```javascript Standard Tiers
+const landorus = Dex.species.get('Landorus-Therian');
+console.log(landorus.tier); // 'OU'
+// OU = Overused (highest usage)
+
+const azumarill = Dex.species.get('Azumarill');
+console.log(azumarill.tier); // 'UU'
+// UU = Underused
+
+const toxicroak = Dex.species.get('Toxicroak');
+console.log(toxicroak.tier); // 'RU'
+// RU = Rarely Used
+
+const articuno = Dex.species.get('Articuno');
+console.log(articuno.tier); // 'NU'
+// NU = Never Used
+```
+
+```javascript Special Tiers
+const mewtwo = Dex.species.get('Mewtwo');
+console.log(mewtwo.tier); // 'Uber'
+// Too powerful for standard play
+
+const pachirisu = Dex.species.get('Pachirisu');
+console.log(pachirisu.tier); // 'ZU'
+// ZU = Zero Used (lowest tier)
+
+const wobbuffet = Dex.species.get('Wobbuffet');
+// May be banned to specific tier
+```
+
+```javascript Format-Specific
+const incineroar = Dex.species.get('Incineroar');
+console.log(incineroar.tier); // May differ by format
+// Popular in VGC, less so in Singles
+
+const landorus = Dex.species.get('Landorus-Therian');
+// Strong in Singles OU, different in VGC
+```
+
+</CodeGroup>
+
+## Format Restrictions
+
+### Species Restrictions
+
+Some Pokémon have format-specific restrictions:
+
+```javascript
+// Check if a species is allowed in a format
+const formatDex = Dex.forFormat('gen9ou');
+const miraidon = formatDex.species.get('Miraidon');
+
+// Uber Pokémon are banned in OU
+console.log(miraidon.tier); // 'Uber'
+// Would not be usable in OU format
+
+const garchomp = formatDex.species.get('Garchomp');
+console.log(garchomp.tier); // 'OU'
+// Allowed in OU format
+```
+
+### Move Restrictions
+
+Certain moves may be banned in specific formats:
+
+```javascript
+// Some moves are banned in certain formats
+// Example: Dynamax moves in Gen 9
+const gen9Dex = Dex.forFormat('gen9ou');
+const maxAirstream = gen9Dex.moves.get('Max Airstream');
+console.log(maxAirstream.isMax); // 'Flying'
+console.log(maxAirstream.isNonstandard); // 'Past'
+// Max Moves not available in Gen 9
+
+const gen8Dex = Dex.forFormat('gen8ou');
+const dynamaxed = gen8Dex.moves.get('Max Airstream');
+// Available in Gen 8 formats
+```
+
+### Ability Restrictions
+
+```javascript
+// Some abilities are banned or restricted
+const shadowTag = Dex.abilities.get('Shadow Tag');
+console.log(shadowTag.rating); // 5
+// Often banned in competitive formats
+
+const moody = Dex.abilities.get('Moody');
+// Commonly banned due to RNG-based boosts
+```
+
+## Usage-Based Tiers
+
+Tiers are determined by usage statistics:
+
+### Tier Thresholds
+
+<Steps>
+
+<Step title="Uber">
+Pokémon banned from OU for being too powerful
+- Typically legendary/mythical Pokémon
+- Mega Rayquaza, Primal Groudon, etc.
+</Step>
+
+<Step title="OU (Overused)">
+Pokémon with ≥4.52% usage in OU
+- Most commonly used in standard play
+- Landorus-T, Garchomp, Toxapex, etc.
+</Step>
+
+<Step title="UU (Underused)">
+Pokémon with &lt;4.52% OU usage but ≥4.52% UU usage
+- Viable but less common than OU
+- Azumarill, Scizor, Hydreigon, etc.
+</Step>
+
+<Step title="RU (Rarely Used)">
+Pokémon with &lt;4.52% UU usage but ≥4.52% RU usage
+- Less common in higher tiers
+- Toxicroak, Salazzle, Flygon, etc.
+</Step>
+
+<Step title="NU (Never Used)">
+Pokémon with &lt;4.52% RU usage but ≥4.52% NU usage
+- Rarely seen in higher tiers
+- Articuno, Silvally, Druddigon, etc.
+</Step>
+
+<Step title="PU/ZU">
+Pokémon with minimal usage
+- PU = Previously Untiered
+- ZU = Zero Used
+</Step>
+
+</Steps>
+
+## Format-Specific Mods
+
+Access data for specific formats using `forFormat()`:
+
+```javascript
+// Gen 8 OU format
+const gen8ou = Dex.forFormat('gen8ou');
+const cinderace = gen8ou.species.get('Cinderace');
+
+// Gen 9 VGC format  
+const gen9vgc = Dex.forFormat('gen9vgc2024regf');
+const flutter = gen9vgc.species.get('Flutter Mane');
+
+// National Dex format
+const natdex = Dex.forFormat('gen9nationaldex');
+const blaziken = natdex.species.get('Blaziken');
+```
+
+## Checking Format Legality
+
+Validate if a Pokémon/move/ability is legal in a format:
+
+<CodeGroup>
+
+```javascript Check Species Legality
+function isLegalInFormat(speciesName, formatId) {
+  const formatDex = Dex.forFormat(formatId);
+  const species = formatDex.species.get(speciesName);
+  
+  // Check if species exists and isn't nonstandard
+  if (!species.exists) return false;
+  if (species.isNonstandard) return false;
+  
+  // Check tier restrictions
+  // This is a simplified example
+  const format = formatDex.formats.get(formatId);
+  return true; // Actual implementation is complex
+}
+
+console.log(isLegalInFormat('Pikachu', 'gen9ou'));
+```
+
+```javascript Check Move Legality
+function canLearnMove(speciesName, moveName, formatId) {
+  const formatDex = Dex.forFormat(formatId);
+  const species = formatDex.species.get(speciesName);
+  const move = formatDex.moves.get(moveName);
+  
+  if (!species.exists || !move.exists) return false;
+  if (move.isNonstandard) return false;
+  
+  // Check learnsets (requires learnset data)
+  // This is a simplified example
+  return true;
+}
+
+console.log(canLearnMove('Pikachu', 'Thunderbolt', 'gen9ou'));
+```
+
+</CodeGroup>
+
+## Doubles vs Singles
+
+Some Pokémon have different viability in different formats:
+
+```javascript
+// Incineroar is much stronger in VGC (Doubles)
+const incineroar = Dex.species.get('Incineroar');
+console.log(incineroar.tier); // Lower in Singles
+
+// But extremely popular in VGC due to Intimidate + Fake Out
+const vgcDex = Dex.forFormat('gen9vgc2024regf');
+const vgcIncineroar = vgcDex.species.get('Incineroar');
+// Widely used in VGC
+
+// Opposite example: Landorus-T
+const landorus = Dex.species.get('Landorus-Therian');
+console.log(landorus.tier); // 'OU' in Singles
+// Less common in Doubles/VGC
+```
+
+## Format Names
+
+Common format identifiers:
+
+<CardGroup cols={2}>
+
+<Card title="Singles Formats">
+- `gen9ou` - Generation 9 OverUsed
+- `gen9uu` - Generation 9 UnderUsed  
+- `gen9ru` - Generation 9 Rarely Used
+- `gen9nu` - Generation 9 Never Used
+- `gen9ubers` - Generation 9 Ubers
+- `gen9nationaldex` - National Dex
+</Card>
+
+<Card title="Doubles Formats">
+- `gen9vgc2024regf` - VGC 2024 Regulation F
+- `gen9doublesubers` - Doubles Ubers
+- `gen9doublesou` - Doubles OverUsed
+- `gen9bdsp` - BDSP Doubles
+</Card>
+
+<Card title="Past Generations">
+- `gen8ou` - Generation 8 OU
+- `gen7ou` - Generation 7 OU
+- `gen6ou` - Generation 6 OU
+- `gen5ou` - Generation 5 OU
+- `gen4ou` - Generation 4 OU
+</Card>
+
+<Card title="Special Formats">
+- `gen9balancedhackmons` - Balanced Hackmons
+- `gen9anythinggoes` - Anything Goes
+- `gen9monotype` - Monotype
+- `gen9lc` - Little Cup
+</Card>
+
+</CardGroup>
+
+## Practical Examples
+
+### Get All OU Pokémon
+
+```javascript
+const ouPokemon = Dex.species.all()
+  .filter(s => s.exists && !s.isNonstandard)
+  .filter(s => s.tier === 'OU')
+  .map(s => s.name);
+
+console.log(`OU Pokémon (${ouPokemon.length}):`);
+ouPokemon.forEach(name => console.log(name));
+```
+
+### Find Pokémon by Tier
+
+```javascript
+function getPokemonByTier(tier) {
+  return Dex.species.all()
+    .filter(s => s.exists && !s.isNonstandard)
+    .filter(s => s.tier === tier)
+    .map(s => s.name);
+}
+
+const uumons = getPokemonByTier('UU');
+const ubers = getPokemonByTier('Uber');
+
+console.log(`UU: ${uumons.length} Pokemon`);
+console.log(`Ubers: ${ubers.length} Pokemon`);
+```
+
+### Compare Tiers Across Generations
+
+```javascript
+function compareTiers(speciesName) {
+  const gens = [9, 8, 7, 6, 5, 4, 3];
+  const tiers = {};
+  
+  for (const gen of gens) {
+    const dex = Dex.mod(`gen${gen}`);
+    const species = dex.species.get(speciesName);
+    if (species.exists) {
+      tiers[`Gen ${gen}`] = species.tier || 'N/A';
+    }
+  }
+  
+  return tiers;
+}
+
+const greninjaTiers = compareTiers('Greninja');
+console.log('Greninja tier history:', greninjaTiers);
+```
+
+### Get Format-Restricted Content
+
+```javascript
+function getRestrictedContent(formatId) {
+  const dex = Dex.forFormat(formatId);
+  const format = dex.formats.get(formatId);
+  
+  // This is a simplified example
+  // Actual implementation requires accessing format rules
+  console.log(`Format: ${format.name}`);
+  console.log(`Mod: ${format.mod}`);
+}
+
+getRestrictedContent('gen9ou');
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+
+<Card title="Species API" icon="dragon" href="/dex/species">
+Learn about base species data
+</Card>
+
+<Card title="Moves API" icon="bolt" href="/dex/moves">
+Understand move restrictions
+</Card>
+
+<Card title="Abilities API" icon="shield-halved" href="/dex/abilities">
+Check ability bans and restrictions
+</Card>
+
+<Card title="Items API" icon="gem" href="/dex/items">
+See item restrictions by format
+</Card>
+
+</CardGroup>

@@ -1,0 +1,328 @@
+---
+title: "Battle"
+description: "Core battle simulation class"
+icon: "swords"
+---
+
+## Overview
+
+The `Battle` class is the core of Pokemon Showdown's battle simulation engine. It manages the battle state, processes actions, and handles all battle mechanics.
+
+```typescript
+import { Battle } from 'pokemon-showdown';
+
+const battle = new Battle();
+```
+
+## Constructor
+
+```typescript
+new Battle(options?: BattleOptions)
+```
+
+<ParamField path="options" type="object">
+  Battle configuration options
+  
+  <Expandable title="properties">
+    <ParamField path="formatid" type="string">
+      Format ID (e.g., "gen9ou", "gen8randombattle")
+    </ParamField>
+    
+    <ParamField path="seed" type="[number, number, number, number]">
+      RNG seed for reproducible battles
+    </ParamField>
+    
+    <ParamField path="rated" type="boolean">
+      Whether this is a rated battle
+    </ParamField>
+    
+    <ParamField path="debug" type="boolean">
+      Enable debug output
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Key Properties
+
+<ResponseField name="turn" type="number">
+  Current turn number
+</ResponseField>
+
+<ResponseField name="p1" type="Side">
+  Player 1's side
+</ResponseField>
+
+<ResponseField name="p2" type="Side">
+  Player 2's side
+</ResponseField>
+
+<ResponseField name="field" type="Field">
+  The battle field state
+</ResponseField>
+
+<ResponseField name="queue" type="BattleQueue">
+  The action queue
+</ResponseField>
+
+<ResponseField name="format" type="Format">
+  The battle format rules
+</ResponseField>
+
+<ResponseField name="dex" type="ModdedDex">
+  The data access layer for this format
+</ResponseField>
+
+<ResponseField name="prng" type="PRNG">
+  The pseudorandom number generator
+</ResponseField>
+
+<ResponseField name="ended" type="boolean">
+  Whether the battle has ended
+</ResponseField>
+
+<ResponseField name="winner" type="SideID | ''">
+  The winning side ID, or empty string if no winner
+</ResponseField>
+
+## Core Methods
+
+### setPlayer()
+
+Set up a player and their team.
+
+```typescript
+battle.setPlayer('p1', {
+  name: 'Alice',
+  team: Teams.pack(teamData)
+});
+```
+
+<ParamField path="playerid" type="'p1' | 'p2' | 'p3' | 'p4'" required>
+  Player identifier
+</ParamField>
+
+<ParamField path="options" type="object" required>
+  <Expandable title="properties">
+    <ParamField path="name" type="string">
+      Player name
+    </ParamField>
+    <ParamField path="team" type="string | PokemonSet[]">
+      Team in packed format or as JSON
+    </ParamField>
+    <ParamField path="avatar" type="string">
+      Player avatar identifier
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### choose()
+
+Make a choice for a player.
+
+```typescript
+battle.choose('p1', 'move 1');
+battle.choose('p2', 'switch 3');
+```
+
+<ParamField path="playerid" type="SideID" required>
+  Player making the choice
+</ParamField>
+
+<ParamField path="choice" type="string" required>
+  The choice string (e.g., "move 1", "switch 2")
+</ParamField>
+
+### start()
+
+Start the battle.
+
+```typescript
+battle.start();
+```
+
+### destroy()
+
+Clean up the battle and free resources.
+
+```typescript
+battle.destroy();
+```
+
+## Battle State Methods
+
+### makeChoices()
+
+Process choices for all players simultaneously.
+
+```typescript
+battle.makeChoices('move 1', 'move 2');
+```
+
+### commitChoices()
+
+Commit and execute the queued choices.
+
+### clearChoice()
+
+Clear a player's pending choice.
+
+```typescript
+battle.clearChoice('p1');
+```
+
+### setTurn()
+
+Advance to the next turn.
+
+```typescript
+battle.setTurn(battle.turn + 1);
+```
+
+## Message Methods
+
+### add()
+
+Add a message to the battle log.
+
+```typescript
+battle.add('-damage', pokemon, pokemon.getHealth());
+```
+
+### addSplit()
+
+Add a message with public and private variants.
+
+```typescript
+battle.addSplit('p1', ['-damage', pokemon, pokemon.getHealth()]);
+```
+
+### hint()
+
+Add a hint message for debugging.
+
+```typescript
+battle.hint("This move failed because...");
+```
+
+## Damage Calculation
+
+### getDamage()
+
+Calculate damage from an attack.
+
+```typescript
+const damage = battle.getDamage(
+  attacker,
+  defender,
+  move,
+  suppressMessages
+);
+```
+
+<ParamField path="attacker" type="Pokemon" required>
+  The attacking Pokemon
+</ParamField>
+
+<ParamField path="defender" type="Pokemon" required>
+  The defending Pokemon
+</ParamField>
+
+<ParamField path="move" type="Move | ActiveMove" required>
+  The move being used
+</ParamField>
+
+<ParamField path="suppressMessages" type="boolean">
+  Whether to suppress damage messages
+</ParamField>
+
+<ResponseField name="return" type="number | false | undefined">
+  Damage amount, false if attack fails, undefined for special handling
+</ResponseField>
+
+## Utility Methods
+
+### randomChance()
+
+Test for a random chance.
+
+```typescript
+if (battle.randomChance(1, 10)) {
+  // 10% chance
+}
+```
+
+### sample()
+
+Randomly select from an array.
+
+```typescript
+const move = battle.sample(pokemon.moves);
+```
+
+### random()
+
+Generate a random integer.
+
+```typescript
+const damage = battle.random(85, 101); // 85-100 inclusive
+```
+
+## Example Usage
+
+```typescript
+import { Battle, Teams } from 'pokemon-showdown';
+
+// Create battle
+const battle = new Battle({
+  formatid: 'gen9ou',
+  seed: [1, 2, 3, 4] // Optional seed for reproducibility
+});
+
+// Set up players
+battle.setPlayer('p1', {
+  name: 'Alice',
+  team: Teams.pack([
+    {species: 'Pikachu', moves: ['thunderbolt', 'quickattack'], level: 50},
+    // ... more Pokemon
+  ])
+});
+
+battle.setPlayer('p2', {
+  name: 'Bob',
+  team: Teams.pack([/* team data */])
+});
+
+// Start battle
+battle.start();
+
+// Make choices each turn
+battle.choose('p1', 'move 1');
+battle.choose('p2', 'move 1');
+
+// Battle continues until ended
+while (!battle.ended) {
+  // Handle choice requests and make choices
+}
+
+console.log(`Winner: ${battle.winner}`);
+
+// Clean up
+battle.destroy();
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="BattleStream" icon="water" href="/api/battle-stream">
+    Stream interface for battles
+  </Card>
+  <Card title="Pokemon" icon="heart" href="/api/pokemon">
+    Pokemon class
+  </Card>
+  <Card title="Side" icon="shield" href="/api/side">
+    Side class
+  </Card>
+  <Card title="Simulator Usage" icon="play" href="/simulator/usage">
+    Using the simulator
+  </Card>
+</CardGroup>

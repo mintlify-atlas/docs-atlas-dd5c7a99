@@ -1,0 +1,375 @@
+---
+title: "Pokemon"
+description: "Pokemon instance class for battle simulation"
+icon: "heart"
+---
+
+## Overview
+
+The `Pokemon` class represents a single Pokemon in battle. It tracks HP, status, stats, moves, abilities, items, and all other Pokemon state during a battle.
+
+```typescript
+// Pokemon instances are created by the Battle engine
+const pokemon = battle.p1.pokemon[0];
+```
+
+## Key Properties
+
+### Identity
+
+<ResponseField name="name" type="string">
+  The Pokemon's nickname or species name
+</ResponseField>
+
+<ResponseField name="species" type="Species">
+  The Pokemon's species data
+</ResponseField>
+
+<ResponseField name="baseSpecies" type="Species">
+  The base species (before forme changes)
+</ResponseField>
+
+<ResponseField name="level" type="number">
+  The Pokemon's level (1-100)
+</ResponseField>
+
+<ResponseField name="gender" type="'M' | 'F' | 'N'">
+  The Pokemon's gender
+</ResponseField>
+
+<ResponseField name="shiny" type="boolean">
+  Whether the Pokemon is shiny
+</ResponseField>
+
+### Battle State
+
+<ResponseField name="hp" type="number">
+  Current HP (0 to maxhp)
+</ResponseField>
+
+<ResponseField name="maxhp" type="number">
+  Maximum HP
+</ResponseField>
+
+<ResponseField name="fainted" type="boolean">
+  Whether the Pokemon has fainted
+</ResponseField>
+
+<ResponseField name="status" type="'par' | 'slp' | 'frz' | 'brn' | 'psn' | 'tox' | ''">
+  Primary status condition
+</ResponseField>
+
+<ResponseField name="statusState" type="StatusState">
+  Status-specific state (e.g., sleep turns, toxic counter)
+</ResponseField>
+
+### Combat Properties
+
+<ResponseField name="moveSlots" type="MoveSlot[]">
+  Array of the Pokemon's moves with PP
+</ResponseField>
+
+<ResponseField name="ability" type="string">
+  Current ability ID
+</ResponseField>
+
+<ResponseField name="baseAbility" type="string">
+  Original ability before changes
+</ResponseField>
+
+<ResponseField name="item" type="string">
+  Current held item ID
+</ResponseField>
+
+<ResponseField name="itemState" type="any">
+  Item-specific state data
+</ResponseField>
+
+### Stats
+
+<ResponseField name="stats" type="StatsTable">
+  Current stat values {hp, atk, def, spa, spd, spe}
+</ResponseField>
+
+<ResponseField name="boosts" type="BoostsTable">
+  Stat stage boosts (-6 to +6) for {atk, def, spa, spd, spe, accuracy, evasion}
+</ResponseField>
+
+### Position
+
+<ResponseField name="side" type="Side">
+  The side this Pokemon belongs to
+</ResponseField>
+
+<ResponseField name="position" type="number">
+  Position on the field (0 for singles, 0-2 for triples)
+</ResponseField>
+
+<ResponseField name="isActive" type="boolean">
+  Whether the Pokemon is currently on the field
+</ResponseField>
+
+## Core Methods
+
+### getHealth()
+
+Get the Pokemon's health in battle protocol format.
+
+```typescript
+pokemon.getHealth(); // Returns "48/100" or "0 fnt"
+```
+
+<ResponseField name="return" type="string">
+  Health string in format "hp/maxhp" or "0 fnt"
+</ResponseField>
+
+### getDetails()
+
+Get the Pokemon's details for battle protocol.
+
+```typescript
+pokemon.getDetails(); // Returns "Pikachu, L50, M"
+```
+
+<ResponseField name="return" type="string">
+  Details string with species, level, gender, shiny
+</ResponseField>
+
+### clearVolatile()
+
+Remove all volatile status conditions.
+
+```typescript
+pokemon.clearVolatile();
+```
+
+### cureStatus()
+
+Cure the Pokemon's primary status.
+
+```typescript
+pokemon.cureStatus(); // Cure paralysis, burn, etc.
+```
+
+### setStatus()
+
+Inflict a status condition.
+
+```typescript
+pokemon.setStatus('par'); // Paralyze
+pokemon.setStatus('slp', null, null, 3); // Sleep for 3 turns
+```
+
+<ParamField path="status" type="string" required>
+  Status ID ('par', 'slp', 'frz', 'brn', 'psn', 'tox')
+</ParamField>
+
+<ParamField path="source" type="Pokemon | null">
+  Source Pokemon
+</ParamField>
+
+<ParamField path="effect" type="Effect | null">
+  Causing effect
+</ParamField>
+
+### getTypes()
+
+Get the Pokemon's current types.
+
+```typescript
+const types = pokemon.getTypes(); // ['Electric']
+```
+
+<ResponseField name="return" type="string[]">
+  Array of type names
+</ResponseField>
+
+### addVolatile()
+
+Add a volatile status condition.
+
+```typescript
+pokemon.addVolatile('confusion');
+pokemon.addVolatile('substitute');
+```
+
+<ParamField path="status" type="string" required>
+  Volatile status ID
+</ParamField>
+
+### hasType()
+
+Check if the Pokemon has a specific type.
+
+```typescript
+if (pokemon.hasType('Water')) {
+  // Water-type Pokemon
+}
+```
+
+### hasAbility()
+
+Check if the Pokemon has a specific ability.
+
+```typescript
+if (pokemon.hasAbility('Levitate')) {
+  // Immune to Ground
+}
+```
+
+### hasItem()
+
+Check if the Pokemon has a specific item.
+
+```typescript
+if (pokemon.hasItem('Leftovers')) {
+  // Holding Leftovers
+}
+```
+
+### useItem()
+
+Consume the held item.
+
+```typescript
+pokemon.useItem(); // Remove consumed item
+```
+
+### setItem()
+
+Set the held item.
+
+```typescript
+pokemon.setItem('Leftovers');
+```
+
+### takeItem()
+
+Remove and return the held item.
+
+```typescript
+const item = pokemon.takeItem();
+```
+
+### setAbility()
+
+Change the Pokemon's ability.
+
+```typescript
+pokemon.setAbility('Moxie');
+```
+
+### formeChange()
+
+Change the Pokemon's forme.
+
+```typescript
+pokemon.formeChange('Giratina-Origin');
+```
+
+### getMoveData()
+
+Get data for a specific move.
+
+```typescript
+const moveData = pokemon.getMoveData('thunderbolt');
+```
+
+### deductPP()
+
+Deduct PP from a move.
+
+```typescript
+pokemon.deductPP('thunderbolt', 1);
+```
+
+## Stat Methods
+
+### getStat()
+
+Get a modified stat value.
+
+```typescript
+const speed = pokemon.getStat('spe'); // Modified by boosts, status, etc.
+```
+
+<ParamField path="stat" type="StatID" required>
+  Stat name: 'atk', 'def', 'spa', 'spd', 'spe'
+</ParamField>
+
+<ParamField path="unboosted" type="boolean">
+  Ignore stat boosts
+</ParamField>
+
+<ParamField path="unmodified" type="boolean">
+  Ignore all modifiers
+</ParamField>
+
+### getWeight()
+
+Get the Pokemon's current weight in kg.
+
+```typescript
+const weight = pokemon.getWeight();
+```
+
+### getMoveHitData()
+
+Get data about how a move would hit this Pokemon.
+
+```typescript
+const data = pokemon.getMoveHitData(move);
+```
+
+## Example Usage
+
+```typescript
+// Access Pokemon in battle
+const pokemon = battle.p1.active[0];
+
+// Check state
+if (pokemon.hp > 0 && !pokemon.fainted) {
+  console.log(`${pokemon.name} has ${pokemon.hp}/${pokemon.maxhp} HP`);
+}
+
+// Check types
+if (pokemon.hasType('Water')) {
+  console.log('Water-type Pokemon');
+}
+
+// Check ability
+if (pokemon.hasAbility('Intimidate')) {
+  console.log('Has Intimidate');
+}
+
+// Get stats
+const speed = pokemon.getStat('spe');
+console.log(`Speed: ${speed}`);
+
+// Check moves
+for (const moveSlot of pokemon.moveSlots) {
+  console.log(`${moveSlot.name}: ${moveSlot.pp}/${moveSlot.maxpp} PP`);
+}
+
+// Modify Pokemon
+pokemon.setStatus('par'); // Paralyze
+pokemon.addVolatile('confusion'); // Confuse
+pokemon.boosts.atk = 1; // +1 Attack
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Battle" icon="swords" href="/api/battle">
+    Battle class
+  </Card>
+  <Card title="Side" icon="shield" href="/api/side">
+    Side class
+  </Card>
+  <Card title="Species Data" icon="book" href="/api/species">
+    Species API
+  </Card>
+  <Card title="Moves Data" icon="bolt" href="/api/moves">
+    Moves API
+  </Card>
+</CardGroup>

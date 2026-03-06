@@ -1,0 +1,220 @@
+---
+title: "BattleStream"
+description: "Stream-based interface for Pokemon battle simulation"
+icon: "water"
+---
+
+## Overview
+
+The `BattleStream` class provides a stream-based interface for running Pokemon battles. It extends `ObjectReadWriteStream<string>` and handles battle initialization, player inputs, and battle outputs.
+
+```typescript
+import { BattleStream } from 'pokemon-showdown';
+
+const stream = new BattleStream();
+```
+
+## Constructor
+
+<ParamField path="options" type="object">
+  Optional configuration for the battle stream
+  
+  <Expandable title="properties">
+    <ParamField path="debug" type="boolean" default="false">
+      Enable debug output
+    </ParamField>
+    
+    <ParamField path="noCatch" type="boolean" default="false">
+      Disable error catching (errors will propagate)
+    </ParamField>
+    
+    <ParamField path="keepAlive" type="boolean" default="false">
+      Keep the stream alive after battle ends
+    </ParamField>
+    
+    <ParamField path="replay" type="boolean | 'spectator'" default="false">
+      Replay mode - 'spectator' for spectator view, true for full replay
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```typescript
+const stream = new BattleStream({
+  debug: true,
+  replay: 'spectator'
+});
+```
+
+## Properties
+
+<ResponseField name="battle" type="Battle | null">
+  The current Battle instance, or null if no battle is active
+</ResponseField>
+
+<ResponseField name="debug" type="boolean">
+  Whether debug mode is enabled
+</ResponseField>
+
+<ResponseField name="noCatch" type="boolean">
+  Whether error catching is disabled
+</ResponseField>
+
+<ResponseField name="replay" type="boolean | 'spectator'">
+  Replay mode setting
+</ResponseField>
+
+<ResponseField name="keepAlive" type="boolean">
+  Whether to keep the stream alive after battle ends
+</ResponseField>
+
+## Methods
+
+### write()
+
+Write commands to the battle stream.
+
+```typescript
+stream.write('>start {"formatid":"gen9ou"}');
+stream.write('>player p1 {"name":"Alice","team":"..."}');
+stream.write('>player p2 {"name":"Bob","team":"..."}');
+```
+
+<ParamField path="message" type="string" required>
+  Command message starting with `>`
+</ParamField>
+
+### Reading Output
+
+The stream outputs battle messages that can be read using async iteration:
+
+```typescript
+(async () => {
+  for await (const output of stream) {
+    console.log(output);
+  }
+})();
+```
+
+## Input Commands
+
+### Start Battle
+
+```typescript
+stream.write('>start {"formatid":"gen9randombattle"}');
+```
+
+<ParamField path="formatid" type="string" required>
+  Format identifier (e.g., "gen9ou", "gen9randombattle")
+</ParamField>
+
+<ParamField path="seed" type="number[]">
+  Optional RNG seed [a, b, c, d] for reproducible battles
+</ParamField>
+
+### Add Player
+
+```typescript
+stream.write('>player p1 {"name":"Alice","team":"..."}');
+```
+
+<ParamField path="playerid" type="'p1' | 'p2' | 'p3' | 'p4'" required>
+  Player identifier
+</ParamField>
+
+<ParamField path="name" type="string">
+  Player name
+</ParamField>
+
+<ParamField path="team" type="string">
+  Team in packed format or JSON
+</ParamField>
+
+### Player Choices
+
+```typescript
+stream.write('>p1 move 1');
+stream.write('>p2 switch 3');
+```
+
+## Output Messages
+
+The stream outputs messages in the format:
+
+```
+update
+|start
+|switch|p1a: Pikachu|Pikachu, L50|100/100
+...
+```
+
+### Message Types
+
+<ResponseField name="update" type="string">
+  Battle state updates visible to all players
+</ResponseField>
+
+<ResponseField name="sideupdate" type="string">
+  Player-specific updates (like choice requests)
+</ResponseField>
+
+<ResponseField name="end" type="string">
+  Battle end message with JSON data
+</ResponseField>
+
+## Complete Example
+
+```typescript
+import { BattleStream } from 'pokemon-showdown';
+
+const stream = new BattleStream();
+
+// Handle battle output
+(async () => {
+  for await (const output of stream) {
+    console.log(output);
+  }
+})();
+
+// Start a random battle
+stream.write('>start {"formatid":"gen9randombattle"}');
+stream.write('>player p1 {"name":"Alice"}');
+stream.write('>player p2 {"name":"Bob"}');
+
+// Make choices (after receiving choice requests)
+stream.write('>p1 move 1');
+stream.write('>p2 move 1');
+```
+
+## Player Streams
+
+For multi-process battles, use `getPlayerStreams()` to get separate streams for each player:
+
+```typescript
+import { getPlayerStreams } from 'pokemon-showdown';
+
+const streams = getPlayerStreams(new BattleStream());
+const p1stream = streams.p1;
+const p2stream = streams.p2;
+const omniscient = streams.omniscient;
+```
+
+<Note>
+  Player streams allow you to run players in separate processes for isolation and sandboxing.
+</Note>
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Battle" icon="shield" href="/api/battle">
+    The core Battle class
+  </Card>
+  <Card title="Simulator Usage" icon="play" href="/simulator/usage">
+    Guide to using the simulator
+  </Card>
+  <Card title="Protocol" icon="book" href="/protocol/battle-protocol">
+    Battle protocol messages
+  </Card>
+  <Card title="Teams" icon="users" href="/api/teams">
+    Team formatting and validation
+  </Card>
+</CardGroup>

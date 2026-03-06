@@ -1,0 +1,540 @@
+---
+title: 'Items API'
+description: 'Access item data including held items, evolution items, and Mega Stones'
+---
+
+## Overview
+
+The Items API provides comprehensive data about Pokémon items including held items, evolution items, Mega Stones, Z-Crystals, and more.
+
+## Basic Usage
+
+### Get an Item
+
+Retrieve item information using `Dex.items.get()`:
+
+```javascript
+const {Dex} = require('pokemon-showdown');
+
+const leftovers = Dex.items.get('Leftovers');
+console.log(leftovers.name); // 'Leftovers'
+console.log(leftovers.num); // Item dex number
+console.log(leftovers.gen); // Generation introduced
+```
+
+<Note>
+Item names are case-insensitive and whitespace is ignored.
+</Note>
+
+```javascript
+// All of these work
+Dex.items.get('leftovers');
+Dex.items.get('Leftovers');
+Dex.items.get('LEFTOVERS');
+Dex.items.get('L e f t o v e r s');
+```
+
+## Item Properties
+
+<CodeGroup>
+
+```javascript Basic Properties
+const choiceBand = Dex.items.get('Choice Band');
+
+console.log(choiceBand.name); // 'Choice Band'
+console.log(choiceBand.num); // 220
+console.log(choiceBand.gen); // 3
+console.log(choiceBand.spritenum); // 68
+console.log(choiceBand.isChoice); // true
+```
+
+```javascript Fling Properties
+const ironBall = Dex.items.get('Iron Ball');
+
+console.log(ironBall.fling);
+// { basePower: 130 }
+// Fling base power when thrown
+
+const toxicOrb = Dex.items.get('Toxic Orb');
+console.log(toxicOrb.fling);
+// { basePower: 30, status: 'tox' }
+```
+
+```javascript Special Flags
+const abilityShield = Dex.items.get('Ability Shield');
+
+console.log(abilityShield.ignoreKlutz); // true
+// Works even with Klutz ability
+
+const assaultVest = Dex.items.get('Assault Vest');
+console.log(assaultVest.gen); // 6
+```
+
+</CodeGroup>
+
+## Held Item Types
+
+### Type-Boosting Items
+
+<CodeGroup>
+
+```javascript Type Plates
+const flamePlate = Dex.items.get('Flame Plate');
+
+console.log(flamePlate.onPlate); // 'Fire'
+console.log(flamePlate.num); // 298
+// Boosts Fire-type moves by 20%
+// Changes Arceus to Fire-type
+
+const splashPlate = Dex.items.get('Splash Plate');
+console.log(splashPlate.onPlate); // 'Water'
+```
+
+```javascript Type-Enhancing Items
+const charcoal = Dex.items.get('Charcoal');
+
+console.log(charcoal.fling); // { basePower: 30 }
+console.log(charcoal.num); // 249
+console.log(charcoal.gen); // 2
+// Boosts Fire-type moves by 20%
+
+const blackGlasses = Dex.items.get('Black Glasses');
+// Boosts Dark-type moves by 20%
+```
+
+```javascript Incenses
+const roseIncense = Dex.items.get('Rose Incense');
+console.log(roseIncense.fling); // { basePower: 10 }
+// Boosts Grass-type moves by 20%
+
+const seaIncense = Dex.items.get('Sea Incense');
+// Boosts Water-type moves by 20%
+```
+
+</CodeGroup>
+
+### Choice Items
+
+```javascript
+const choiceBand = Dex.items.get('Choice Band');
+console.log(choiceBand.isChoice); // true
+// Boosts Attack by 50%, locks into one move
+
+const choiceScarf = Dex.items.get('Choice Scarf');
+console.log(choiceScarf.isChoice); // true  
+// Boosts Speed by 50%, locks into one move
+
+const choiceSpecs = Dex.items.get('Choice Specs');
+console.log(choiceSpecs.isChoice); // true
+// Boosts Special Attack by 50%, locks into one move
+
+console.log(choiceBand.gen); // 3
+console.log(choiceScarf.gen); // 4
+console.log(choiceSpecs.gen); // 4
+```
+
+### Berries
+
+<CodeGroup>
+
+```javascript Healing Berries
+const sitrusBerry = Dex.items.get('Sitrus Berry');
+
+console.log(sitrusBerry.isBerry); // true
+console.log(sitrusBerry.naturalGift);
+// { basePower: 80, type: 'Psychic' }
+// Heals 1/4 max HP when below 50% HP
+
+const oranBerry = Dex.items.get('Oran Berry');
+console.log(oranBerry.isBerry); // true
+// Heals 10 HP (not percentage-based)
+```
+
+```javascript Status Berries
+const cheriBerry = Dex.items.get('Cheri Berry');
+
+console.log(cheriBerry.isBerry); // true
+console.log(cheriBerry.naturalGift);
+// { basePower: 80, type: 'Fire' }
+// Cures paralysis
+
+const chestoBerry = Dex.items.get('Chesto Berry');
+// Cures sleep
+
+const pechaBerry = Dex.items.get('Pecha Berry');
+// Cures poison
+```
+
+```javascript Type-Resist Berries
+const occaBerry = Dex.items.get('Occa Berry');
+
+console.log(occaBerry.isBerry); // true
+console.log(occaBerry.naturalGift);
+// { basePower: 80, type: 'Fire' }
+// Halves damage from super effective Fire move
+
+const chopleberry = Dex.items.get('Chople Berry');
+// Halves damage from super effective Fighting move
+```
+
+```javascript Stat-Boost Berries  
+const liechiBerry = Dex.items.get('Liechi Berry');
+
+console.log(liechiBerry.isBerry); // true
+console.log(liechiBerry.naturalGift);
+// { basePower: 100, type: 'Grass' }
+// Raises Attack when HP is low
+
+const petayaBerry = Dex.items.get('Petaya Berry');
+// Raises Special Attack when HP is low
+```
+
+</CodeGroup>
+
+### Mega Stones
+
+```javascript
+const venusaurite = Dex.items.get('Venusaurite');
+
+console.log(venusaurite.megaStone);
+// { 'Venusaur': 'Venusaur-Mega' }
+console.log(venusaurite.itemUser); // ['Venusaur']
+console.log(venusaurite.num); // 659
+console.log(venusaurite.gen); // 6
+console.log(venusaurite.isNonstandard); // 'Past'
+
+const charizarditeX = Dex.items.get('Charizardite X');
+console.log(charizarditeX.megaStone);
+// { 'Charizard': 'Charizard-Mega-X' }
+
+const charizarditeY = Dex.items.get('Charizardite Y');
+console.log(charizarditeY.megaStone);
+// { 'Charizard': 'Charizard-Mega-Y' }
+```
+
+### Z-Crystals
+
+<CodeGroup>
+
+```javascript Type Z-Crystals
+const electriumZ = Dex.items.get('Electrium Z');
+
+console.log(electriumZ.zMove); // true
+console.log(electriumZ.zMoveType); // 'Electric'
+console.log(electriumZ.onPlate); // 'Electric'
+console.log(electriumZ.num); // 779
+console.log(electriumZ.gen); // 7
+console.log(electriumZ.isNonstandard); // 'Past'
+
+const fightiniumZ = Dex.items.get('Fightinium Z');
+console.log(fightiniumZ.zMoveType); // 'Fighting'
+```
+
+```javascript Signature Z-Crystals
+const pikaniumZ = Dex.items.get('Pikanium Z');
+
+console.log(pikaniumZ.zMove); // 'Catastropika'
+console.log(pikaniumZ.zMoveFrom); // 'Volt Tackle'
+console.log(pikaniumZ.itemUser); // ['Pikachu']
+
+const decidiumZ = Dex.items.get('Decidium Z');
+console.log(decidiumZ.zMove); // 'Sinister Arrow Raid'
+console.log(decidiumZ.zMoveFrom); // 'Spirit Shackle'
+console.log(decidiumZ.itemUser); // ['Decidueye']
+```
+
+</CodeGroup>
+
+### Evolution Items
+
+```javascript
+const thunderStone = Dex.items.get('Thunder Stone');
+console.log(thunderStone.num); // 83
+console.log(thunderStone.gen); // 1
+// Evolves Pikachu → Raichu
+
+const duskStone = Dex.items.get('Dusk Stone');
+console.log(duskStone.num); // 108
+console.log(duskStone.gen); // 4
+// Evolves Murkrow → Honchkrow, etc.
+
+const ovalStone = Dex.items.get('Oval Stone');
+console.log(ovalStone.num); // 110
+// Evolves Happiny → Chansey when held + daytime level-up
+```
+
+## Special Items
+
+### Utility Items
+
+<CodeGroup>
+
+```javascript Boosting Items
+const lifeOrb = Dex.items.get('Life Orb');
+console.log(lifeOrb.num); // 270
+console.log(lifeOrb.gen); // 4
+// Boosts moves by 30%, loses 10% HP per attack
+
+const expertBelt = Dex.items.get('Expert Belt');
+console.log(expertBelt.num); // 268
+// Boosts super effective moves by 20%
+```
+
+```javascript Defensive Items
+const assaultVest = Dex.items.get('Assault Vest');
+console.log(assaultVest.num); // 640
+console.log(assaultVest.gen); // 6
+// Boosts Special Defense by 50%, blocks status moves
+
+const focusSash = Dex.items.get('Focus Sash');
+console.log(focusSash.num); // 275
+// Survives a KO hit at full HP with 1 HP
+```
+
+```javascript Recovery Items
+const leftovers = Dex.items.get('Leftovers');
+console.log(leftovers.num); // 234
+console.log(leftovers.gen); // 2
+// Restores 1/16 max HP per turn
+
+const blackSludge = Dex.items.get('Black Sludge');
+console.log(blackSludge.num); // 281
+// Restores 1/16 HP for Poison types, damages others
+```
+
+</CodeGroup>
+
+### Status Items
+
+```javascript
+const flameOrb = Dex.items.get('Flame Orb');
+console.log(flameOrb.num); // 273
+console.log(flameOrb.gen); // 4
+// Burns the holder after one turn
+
+const toxicOrb = Dex.items.get('Toxic Orb');
+console.log(toxicOrb.num); // 272
+// Badly poisons the holder after one turn
+
+const stickyBarb = Dex.items.get('Sticky Barb');
+console.log(stickyBarb.num); // 288
+// Damages holder, may transfer on contact
+```
+
+### Forme-Changing Items
+
+<CodeGroup>
+
+```javascript Orbs
+const griseousOrb = Dex.items.get('Griseous Orb');
+console.log(griseousOrb.num); // 112
+console.log(griseousOrb.itemUser); // ['Giratina']
+// Changes Giratina to Origin Forme
+
+const adamantOrb = Dex.items.get('Adamant Orb');
+console.log(adamantOrb.itemUser); // ['Dialga']
+// Boosts Dialga's Dragon/Steel moves
+```
+
+```javascript Drives
+const burnDrive = Dex.items.get('Burn Drive');
+
+console.log(burnDrive.onDrive); // 'Fire'
+console.log(burnDrive.itemUser); // ['Genesect-Burn']
+console.log(burnDrive.forcedForme); // 'Genesect-Burn'
+// Changes Genesect's Techno Blast to Fire type
+
+const douseDrive = Dex.items.get('Douse Drive');
+console.log(douseDrive.onDrive); // 'Water'
+```
+
+```javascript Memories
+const fightingMemory = Dex.items.get('Fighting Memory');
+
+console.log(fightingMemory.onMemory); // 'Fighting'
+console.log(fightingMemory.itemUser); // ['Silvally-Fighting']
+console.log(fightingMemory.forcedForme); // 'Silvally-Fighting'
+console.log(fightingMemory.num); // 904
+```
+
+</CodeGroup>
+
+## Generation-Specific Items
+
+### New Item Mechanics
+
+```javascript
+// Gen 9 items
+const boosterEnergy = Dex.items.get('Booster Energy');
+console.log(boosterEnergy.num); // 1880
+console.log(boosterEnergy.gen); // 9
+// Activates Paradox abilities
+
+const clearAmulet = Dex.items.get('Clear Amulet');
+console.log(clearAmulet.num); // 1882
+// Prevents stat lowering
+
+const abilityShield = Dex.items.get('Ability Shield');
+console.log(abilityShield.num); // 1881
+console.log(abilityShield.ignoreKlutz); // true
+// Protects ability from being changed
+```
+
+### Past Generation Items
+
+```javascript
+const gen1Dex = Dex.mod('gen1');
+const gen1Items = gen1Dex.items.all();
+console.log(gen1Items.length); // 0 (no held items in Gen 1)
+
+const gen2Dex = Dex.mod('gen2');
+const leftovers = gen2Dex.items.get('Leftovers');
+console.log(leftovers.exists); // true
+console.log(leftovers.gen); // 2
+```
+
+## List All Items
+
+Retrieve all item data:
+
+```javascript
+const allItems = Dex.items.all();
+
+console.log(allItems.length); // 2000+ items
+
+// Filter to berries only
+const berries = allItems.filter(i => i.isBerry && i.exists);
+
+// Filter to Mega Stones
+const megaStones = allItems.filter(i => 
+  i.megaStone && i.exists
+);
+
+// Filter to current generation items
+const currentItems = allItems.filter(i => 
+  i.exists && !i.isNonstandard
+);
+```
+
+<Warning>
+The `.all()` method includes nonstandard items from past generations, unreleased items, and Pokéballs. Always check `exists` and `isNonstandard` properties.
+</Warning>
+
+## Checking Item Existence
+
+```javascript
+const leftovers = Dex.items.get('Leftovers');
+console.log(leftovers.exists); // true
+console.log(leftovers.isNonstandard); // null (standard)
+
+const venusaurite = Dex.items.get('Venusaurite');
+console.log(venusaurite.exists); // true
+console.log(venusaurite.isNonstandard); // 'Past'
+
+const fakeItem = Dex.items.get('Not Real Item');
+console.log(fakeItem.exists); // false
+```
+
+## Practical Examples
+
+### Find All Choice Items
+
+```javascript
+const choiceItems = Dex.items.all()
+  .filter(i => i.isChoice && i.exists)
+  .map(i => i.name);
+
+console.log(choiceItems);
+// ['Choice Band', 'Choice Scarf', 'Choice Specs']
+```
+
+### Get All Type Plates
+
+```javascript
+const plates = Dex.items.all()
+  .filter(i => i.onPlate && i.exists && !i.isNonstandard)
+  .map(i => ({ name: i.name, type: i.onPlate }));
+
+plates.forEach(plate => {
+  console.log(`${plate.name}: ${plate.type} type`);
+});
+```
+
+### Find Berry by Type
+
+```javascript
+function findBerriesByType(type) {
+  return Dex.items.all()
+    .filter(i => i.isBerry && i.exists)
+    .filter(i => i.naturalGift?.type === type)
+    .map(i => i.name);
+}
+
+const fireberries = findBerriesByType('Fire');
+console.log('Fire-type Natural Gift berries:', fireberries);
+```
+
+### Get Mega Stone for Species
+
+```javascript
+function getMegaStone(speciesName) {
+  const allItems = Dex.items.all();
+  const megaStone = allItems.find(i => 
+    i.megaStone && i.megaStone[speciesName]
+  );
+  
+  if (megaStone) {
+    return {
+      stone: megaStone.name,
+      forme: megaStone.megaStone[speciesName]
+    };
+  }
+  return null;
+}
+
+const venusaurStone = getMegaStone('Venusaur');
+console.log(venusaurStone);
+// { stone: 'Venusaurite', forme: 'Venusaur-Mega' }
+```
+
+### List All Fling Powers
+
+```javascript
+const flingPowers = new Map();
+
+Dex.items.all()
+  .filter(i => i.fling && i.exists && !i.isNonstandard)
+  .forEach(i => {
+    const power = i.fling.basePower;
+    if (!flingPowers.has(power)) {
+      flingPowers.set(power, []);
+    }
+    flingPowers.get(power).push(i.name);
+  });
+
+for (const [power, items] of flingPowers) {
+  console.log(`${power} BP: ${items.length} items`);
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+
+<Card title="Species API" icon="dragon" href="/dex/species">
+Find which Pokémon can use specific items
+</Card>
+
+<Card title="Moves API" icon="bolt" href="/dex/moves">
+Learn about moves that interact with items
+</Card>
+
+<Card title="Abilities API" icon="shield-halved" href="/dex/abilities">
+Discover abilities that affect items
+</Card>
+
+<Card title="Formats Data" icon="list" href="/dex/formats-data">
+Check format-specific item restrictions
+</Card>
+
+</CardGroup>

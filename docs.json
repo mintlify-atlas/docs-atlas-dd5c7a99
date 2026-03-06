@@ -1,122 +1,131 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Pokemon Showdown",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#74a5c5",
+    "light": "#74a5c5",
+    "dark": "#3e4d56"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://icons.duckduckgo.com/ip3/pokemonshowdown.com.ico",
+  "logo": {
+    "light": "https://media.brand.dev/358285a2-8520-4e03-a4fc-b8c372a8a811.png",
+    "dark": "https://media.brand.dev/358285a2-8520-4e03-a4fc-b8c372a8a811.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/smogon/pokemon-showdown"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/smogon/pokemon-showdown"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "architecture"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Server Hosting",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "server/installation",
+              "server/configuration",
+              "server/administration",
+              "server/security"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Battle Simulator",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "simulator/overview",
+              "simulator/usage",
+              "simulator/battle-stream",
+              "simulator/teams",
+              "simulator/formats"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Pokedex & Data",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "dex/overview",
+              "dex/species",
+              "dex/moves",
+              "dex/abilities",
+              "dex/items",
+              "dex/formats-data"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/contributing",
+              "development/custom-formats",
+              "development/modding",
+              "development/chat-plugins"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Battle API",
             "pages": [
-              "api-reference/introduction"
+              "api/battle-stream",
+              "api/battle",
+              "api/pokemon",
+              "api/side"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Dex API",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/dex",
+              "api/moves",
+              "api/species",
+              "api/abilities",
+              "api/items"
+            ]
+          },
+          {
+            "group": "Teams API",
+            "pages": [
+              "api/teams",
+              "api/team-validator"
+            ]
+          },
+          {
+            "group": "Protocol Reference",
+            "pages": [
+              "protocol/overview",
+              "protocol/client-server",
+              "protocol/battle-protocol",
+              "protocol/choice-requests"
+            ]
+          },
+          {
+            "group": "Command-Line Tools",
+            "pages": [
+              "cli/overview",
+              "cli/simulate-battle",
+              "cli/team-commands",
+              "cli/server-commands"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

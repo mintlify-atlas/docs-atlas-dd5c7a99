@@ -1,0 +1,462 @@
+---
+title: 'Server Administration'
+description: 'Manage users, permissions, and moderation on your Pokemon Showdown server'
+icon: 'user-shield'
+---
+
+## Setting Up Administrator Access
+
+Once your server is running, you'll want to make yourself an Administrator to manage it effectively.
+
+<Steps>
+  <Step title="Register an Account">
+    Before becoming an Administrator, you need a registered account:
+
+    1. Connect to your server
+    2. Click the settings icon (gear) in the upper-right
+    3. Click the "Register" button
+    4. Choose a password for your account
+  </Step>
+
+  <Step title="Create usergroups.csv">
+    Create the file `config/usergroups.csv` with your username and admin rank:
+
+    ```csv config/usergroups.csv
+    USERNAME,~
+    ```
+
+    Replace `USERNAME` with your registered username (no spaces between comma and tilde).
+
+    <Warning>
+      The username is case-sensitive and must match your registered account exactly.
+    </Warning>
+  </Step>
+
+  <Step title="Restart or Reload">
+    Restart your server or reload the configuration to apply changes. Your account should now have Administrator (~) rank.
+  </Step>
+</Steps>
+
+## User Ranks and Permissions
+
+Pokemon Showdown uses a hierarchical permission system with different user groups.
+
+### Global Ranks
+
+<CardGroup cols={2}>
+  <Card title="Administrator (~)" icon="crown">
+    Full server control, console access, all permissions
+  </Card>
+  <Card title="Moderator (@)" icon="shield-halved">
+    Global bans, force rename, IP/alt checking, game management
+  </Card>
+  <Card title="Driver (%)" icon="car">
+    Mute, lock, kick, warn users, battle moderation
+  </Card>
+  <Card title="Bot (*)" icon="robot">
+    Automated account with custom permissions
+  </Card>
+  <Card title="Voice (+)" icon="volume-high">
+    Basic trusted user privileges
+  </Card>
+  <Card title="Regular User ( )" icon="user">
+    Standard user permissions
+  </Card>
+</CardGroup>
+
+### Room Ranks
+
+<CardGroup cols={2}>
+  <Card title="Room Owner (#)" icon="key">
+    Full control over specific room
+  </Card>
+  <Card title="Host (★)" icon="star">
+    Room management and tournament hosting
+  </Card>
+  <Card title="Player (☆)" icon="gamepad">
+    Battle-specific permissions
+  </Card>
+  <Card title="Prize Winner (^)" icon="trophy">
+    Cosmetic rank for tournament winners
+  </Card>
+</CardGroup>
+
+## Promoting and Demoting Users
+
+As an Administrator, you can manage user ranks with chat commands.
+
+### Global Rank Commands
+
+```text
+/globaladmin USERNAME - Promote to Administrator (~)
+/globalmod USERNAME - Promote to Moderator (@)
+/globaldriver USERNAME - Promote to Driver (%)
+/globalbot USERNAME - Promote to Bot (*)
+/globalvoice USERNAME - Promote to Voice (+)
+/globaldeauth USERNAME - Remove global rank
+```
+
+### Room Rank Commands
+
+```text
+/roomowner USERNAME - Promote to Room Owner (#)
+/roommod USERNAME - Promote to Room Moderator (@)
+/roomdriver USERNAME - Promote to Room Driver (%)
+/roomvoice USERNAME - Promote to Room Voice (+)
+/roomdeauth USERNAME - Remove room rank
+```
+
+<Note>
+  You can only promote users to ranks that are within your jurisdiction. Check the [Permission System](#permission-system) section for details.
+</Note>
+
+## Permission System
+
+Permissions are defined in `config/config.js` under `exports.grouplist`. Each group has specific capabilities:
+
+### Core Permissions
+
+**Administrator (~)**
+- `console` - Access to developer console (>> and >>>)
+- `lockdown` - Use `/lockdown` and `/endlockdown`
+- `bypassall` - Bypass all restrictions
+- `promote` - Promote/demote users
+- `makeroom` - Create and delete chat rooms
+- `rangeban` - Ban IP ranges
+- `potd` - Set Pokemon of the Day
+- `gdeclare` - Global declarations
+
+**Moderator (@)**
+- `globalban` - Ban users from entire server
+- `ban` - Ban from rooms
+- `forcerename` - Force user to change name
+- `ip` - Check user IP addresses
+- `alts` - Check user alternate accounts
+- `game` - Create games
+
+**Driver (%)**
+- `mute` - Mute users in chat
+- `lock` - Lock users (IP mute)
+- `kick` - Kick users from rooms
+- `warn` - Issue warnings
+- `modlog` - View moderation logs
+- `timer` - Control battle timers
+- `gamemoderation` - Moderate tournaments
+- `minigame` - Create minigames
+
+**Voice (+)**
+- `show` - Show command output to users
+- `showmedia` - Display images/videos
+- `altsself` - Check own alts
+- `makegroupchat` - Create group chats
+
+### Jurisdiction
+
+Each rank has a jurisdiction that determines which users they can affect:
+
+- `'s'` - Self only
+- `'u'` - All ranks below current rank
+- `'~u'` - Up to Administrator
+- `'%u'` - Up to Driver
+- `'@u'` - Up to Moderator
+
+Example from config:
+
+```javascript config/config.js
+{
+  symbol: '@',
+  id: "mod",
+  name: "Moderator",
+  inherit: '%',
+  jurisdiction: 'u',
+  
+  globalban: true,
+  ban: true,
+  forcerename: true,
+  ip: true,
+  alts: '@u',
+  // ...
+}
+```
+
+## Moderation Commands
+
+### Punishments
+
+<CodeGroup>
+```text Warnings
+/warn USERNAME, reason - Warn a user
+/minorwarn USERNAME, reason - Minor warning
+```
+
+```text Mutes
+/mute USERNAME, duration, reason - Mute in room
+/hourmute USERNAME, reason - 1 hour mute
+/unmute USERNAME - Remove mute
+```
+
+```text Locks
+/lock USERNAME, reason - Global IP mute
+/weeklock USERNAME, reason - 1 week lock
+/unlock USERNAME - Remove lock
+```
+
+```text Bans
+/ban USERNAME, reason - Ban from room
+/roomban USERNAME, reason - Room ban
+/globalban USERNAME, reason - Ban from server
+/unban USERNAME - Remove ban
+```
+</CodeGroup>
+
+<Note>
+  Punishment durations are configured in the server code:
+  - Lock: 48 hours
+  - Global ban: 7 days
+  - Room ban: 48 hours
+  - Blacklist: 1 year
+</Note>
+
+### User Management
+
+```text
+/forcerename USERNAME, reason - Force name change
+/namelock USERNAME, reason - Lock from using a name
+/unnamelock USERNAME - Remove namelock
+/redirect USERNAME, room - Redirect user to room
+/hidealts USERNAME - Hide user's alts from public
+```
+
+### Information Commands
+
+```text
+/ip USERNAME - View user's IP address
+/alts USERNAME - View user's alternate accounts
+/checkpunishment USERNAME - Check active punishments
+/modlog USERNAME - View moderation history
+/punishlog USERNAME - View punishment log
+```
+
+<Warning>
+  IP and alt checking commands require appropriate permissions. Use responsibly and respect user privacy.
+</Warning>
+
+## Room Management
+
+### Creating Rooms
+
+```text
+/makechatroom ROOMNAME - Create permanent chat room
+/makegroupchat USERS - Create group chat
+/deleteroom ROOMID - Delete a room
+```
+
+### Room Settings
+
+```text
+/roomdesc DESCRIPTION - Set room description
+/roompromote USERNAME, RANK - Promote in room
+/roomdeauth USERNAME - Remove room rank
+/roomintro TEXT - Set room introduction
+/roomavatar URL - Set room avatar
+```
+
+### Room Moderation
+
+```text
+/modchat RANK - Set minimum rank to chat
+/modjoin RANK - Set minimum rank to join
+/roommod USERNAME - Make room moderator
+/roomowner USERNAME - Make room owner
+```
+
+### Privacy Settings
+
+```text
+/hideroom - Hide battle from searches
+/showroom - Make battle public
+/private - Make room private (invite only)
+/public - Make room public
+```
+
+## Battle Management
+
+### Battle Control
+
+```text
+/forcewin USERNAME - Force player to win
+/forcetie - Force battle to tie
+/forfeit - Forfeit your own battle
+/savereplay - Save battle replay
+```
+
+### Battle Moderation
+
+```text
+/timer on - Enable battle timer
+/timer off - Disable battle timer
+/modjoin + - Restrict battle spectators
+/invite USERNAME - Invite user to private battle
+```
+
+## Tournament Management
+
+Drivers and above can manage tournaments:
+
+### Starting Tournaments
+
+```text
+/tour new FORMAT, TYPE, MAXPLAYERS - Create tournament
+/tour start - Start tournament
+/tour end - End tournament
+/tour autostart MINUTES - Auto-start timer
+/tour autodq MINUTES - Auto-DQ timer
+```
+
+### Tournament Moderation
+
+```text
+/tour dq USERNAME - Disqualify player
+/tour sub USERNAME, REPLACEMENT - Substitute player
+/tour autostart - Set auto-start timer
+/tour settype TYPE - Change tournament type
+```
+
+### Tournament Types
+
+- `elimination` - Single elimination bracket
+- `roundrobin` - Everyone plays everyone
+
+## Server Administration
+
+### Server Control
+
+Administrators can control the server:
+
+```text
+/lockdown - Lock server (no battles start)
+/endlockdown - End lockdown
+/kill - Shut down server
+/updateserver - Pull latest code from Git
+/hotpatch all - Reload all server code
+```
+
+<Warning>
+  `/kill` immediately shuts down the server. Use `/lockdown` first to let battles finish gracefully.
+</Warning>
+
+### Code Management
+
+```text
+/hotpatch chat - Reload chat commands
+/hotpatch battles - Reload battle engine
+/hotpatch formats - Reload format definitions
+/savelearnsets - Save learnset changes
+```
+
+### Developer Console
+
+Administrators with console permission can execute arbitrary code:
+
+```text
+>> JavaScript.expression - Evaluate expression
+>>> JavaScript.code - Execute code
+```
+
+<Warning>
+  **Extreme security risk!** The console allows full system access. Only give console permission to the server owner. Configure allowed IPs in `config/config.js`:
+  
+  ```javascript
+  exports.consoleips = ['127.0.0.1'];
+  ```
+</Warning>
+
+## Monitoring and Logs
+
+### Moderation Logs
+
+View and search moderation logs:
+
+```text
+/modlog - View recent mod actions
+/modlog USERNAME - View logs for user
+/modlog, DAYS - View logs from last N days
+/punishlog USERNAME - Punishment-specific log
+```
+
+### Punishment Monitor
+
+The server can automatically monitor users with multiple punishments:
+
+```javascript config/config.js
+exports.monitorminpunishments = 3;
+exports.punishmentautolock = false;
+```
+
+<Note>
+  When `punishmentautolock` is enabled, users with 3+ room bans are automatically locked.
+</Note>
+
+## User Groups Configuration
+
+Customize ranks by editing `exports.grouplist` in `config/config.js`:
+
+```javascript config/config.js
+exports.grouplist = [
+  {
+    symbol: '~',
+    id: "admin",
+    name: "Administrator",
+    inherit: '@',
+    jurisdiction: 'u',
+    globalonly: true,
+    
+    console: true,
+    bypassall: true,
+    lockdown: true,
+    promote: '~u',
+    makeroom: true,
+    // ... more permissions
+  },
+  // ... more ranks
+];
+```
+
+### Custom Ranks
+
+You can add custom ranks by adding new entries to the grouplist. Each rank needs:
+
+- `symbol` - Character displayed before username
+- `id` - Internal identifier
+- `name` - Human-readable name
+- `inherit` - Parent rank to inherit permissions from
+- `jurisdiction` - Who this rank can affect
+- Permission flags for specific capabilities
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Minimal Admins" icon="users">
+    Only promote trustworthy users. Administrators have full server control.
+  </Card>
+  <Card title="Clear Guidelines" icon="book">
+    Establish and document clear moderation rules for your staff.
+  </Card>
+  <Card title="Log Everything" icon="file-lines">
+    Enable chat and modlog logging to track issues and disputes.
+  </Card>
+  <Card title="Regular Audits" icon="magnifying-glass">
+    Periodically review staff actions and adjust permissions as needed.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Security" icon="shield" href="/server/security">
+    Learn how to secure your production server
+  </Card>
+  <Card title="Configuration" icon="gear" href="/server/configuration">
+    Review and optimize server settings
+  </Card>
+</CardGroup>
