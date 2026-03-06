@@ -1,0 +1,153 @@
+{
+  "projectType": "saas",
+  "projectName": "Pokemon Showdown",
+  "projectDescription": "A competitive Pokémon battle simulator with real-time multiplayer battles across all generations",
+  "theme": "aspen",
+  "primaryColor": "#74a5c5",
+  "lightColor": "#74a5c5",
+  "darkColor": "#3e4d56",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Server Hosting",
+            "pages": [
+              "server/installation",
+              "server/configuration",
+              "server/administration",
+              "server/security"
+            ]
+          },
+          {
+            "group": "Battle Simulator",
+            "pages": [
+              "simulator/overview",
+              "simulator/usage",
+              "simulator/battle-stream",
+              "simulator/teams",
+              "simulator/formats"
+            ]
+          },
+          {
+            "group": "Pokedex & Data",
+            "pages": [
+              "dex/overview",
+              "dex/species",
+              "dex/moves",
+              "dex/abilities",
+              "dex/items",
+              "dex/formats-data"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/contributing",
+              "development/custom-formats",
+              "development/modding",
+              "development/chat-plugins"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Battle API",
+            "pages": [
+              "api/battle-stream",
+              "api/battle",
+              "api/pokemon",
+              "api/side"
+            ]
+          },
+          {
+            "group": "Dex API",
+            "pages": [
+              "api/dex",
+              "api/moves",
+              "api/species",
+              "api/abilities",
+              "api/items"
+            ]
+          },
+          {
+            "group": "Teams API",
+            "pages": [
+              "api/teams",
+              "api/team-validator"
+            ]
+          },
+          {
+            "group": "Protocol Reference",
+            "pages": [
+              "protocol/overview",
+              "protocol/client-server",
+              "protocol/battle-protocol",
+              "protocol/choice-requests"
+            ]
+          },
+          {
+            "group": "Command-Line Tools",
+            "pages": [
+              "cli/overview",
+              "cli/simulate-battle",
+              "cli/team-commands",
+              "cli/server-commands"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time multiplayer Pokémon battles",
+    "Support for all generations (Gen 1-9)",
+    "Comprehensive battle simulator API",
+    "Team builder and validator",
+    "Pokedex data access API",
+    "Custom format and mod support",
+    "Chat rooms and matchmaking",
+    "Command-line battle simulation",
+    "Self-hostable game server",
+    "Open source battle engine"
+  ],
+  "publicApiSurface": [
+    "Battle",
+    "BattleStream",
+    "getPlayerStreams",
+    "Pokemon",
+    "Side",
+    "Dex",
+    "Dex.mod",
+    "Dex.moves.get",
+    "Dex.species.get",
+    "Dex.abilities.get",
+    "Dex.items.get",
+    "Teams",
+    "Teams.pack",
+    "Teams.unpack",
+    "Teams.export",
+    "Teams.import",
+    "TeamValidator",
+    "PRNG",
+    "toID",
+    "./pokemon-showdown start",
+    "./pokemon-showdown simulate-battle",
+    "./pokemon-showdown generate-team",
+    "./pokemon-showdown validate-team",
+    "./pokemon-showdown pack-team",
+    "./pokemon-showdown export-team"
+  ]
+}
